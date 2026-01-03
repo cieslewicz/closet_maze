@@ -36,10 +36,7 @@ describe('Closet', () => {
     })
 
     it('should detect wall collision', () => {
-        const playerBox = new THREE.Box3(
-            new THREE.Vector3(-0.4, 0, -0.4),
-            new THREE.Vector3(-0.3, 1, -0.3)
-        )
+
         // Back wall is at z=-0.35. Side is x=-0.35.
         // This box overlaps slightly? 
         // Let's test explicit intersection.

@@ -11,6 +11,7 @@ describe('Enemy', () => {
         enemy = new Enemy(0, 0)
         // Mock Maze or use real one (Real one is fast enough usually)
         maze = new Maze(10, 10)
+        maze.checkCollision = () => false // Mock collision to always be false 
     })
 
     it('should initialize', () => {

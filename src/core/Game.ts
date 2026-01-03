@@ -103,7 +103,7 @@ export class Game {
         this.scene.add(dirLight)
     }
 
-    private initLevel() {
+    private initLevel(difficulty: string = 'medium') {
         this.scene.clear()
         this.initLights()
 
@@ -198,8 +198,12 @@ export class Game {
             }
         }
 
-        // Spawn 2 Enemies
-        for (let i = 0; i < 2 && i < emptySpots.length; i++) {
+        // Spawn Enemies based on Difficulty
+        let enemyCount = 4
+        if (difficulty === 'easy') enemyCount = 2
+        if (difficulty === 'hard') enemyCount = 6
+
+        for (let i = 0; i < enemyCount && i < emptySpots.length; i++) {
             const idx = Math.floor(Math.random() * emptySpots.length)
             const spot = emptySpots.splice(idx, 1)[0]
             const enemy = new Enemy(spot.x, spot.z)
@@ -220,8 +224,20 @@ export class Game {
         this.scene.add(this.player.getMesh())
     }
 
+    private currentDifficulty: string = 'medium'
+
     public start() {
         if (this.isRunning) return
+
+        // Read difficulty from UI
+        const diffSelect = document.getElementById('difficulty') as HTMLSelectElement
+        if (diffSelect) {
+            this.currentDifficulty = diffSelect.value
+        }
+
+        // Re-init level with selected difficulty
+        this.initLevel(this.currentDifficulty)
+
         this.isRunning = true
         this.isPaused = false
         this.clock.start()
@@ -229,7 +245,7 @@ export class Game {
     }
 
     public restart() {
-        this.initLevel()
+        this.initLevel(this.currentDifficulty)
         this.clock.stop()
         this.clock.start()
         this.isRunning = true

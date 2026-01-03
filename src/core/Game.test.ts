@@ -193,4 +193,19 @@ describe('Game Integration', () => {
             }
         }
     })
+
+    it('should spawn correct number of enemies based on difficulty', () => {
+        game = new Game()
+
+        // Default (Medium) -> 4
+        expect((game as any).enemies.length).toBe(4)
+
+            // Easy -> 2
+            ; (game as any).initLevel('easy')
+        expect((game as any).enemies.length).toBe(2)
+
+            // Hard -> 6
+            ; (game as any).initLevel('hard')
+        expect((game as any).enemies.length).toBe(6)
+    })
 })

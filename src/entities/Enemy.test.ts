@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { Enemy } from './Enemy'
 import { Maze } from './Maze'
 import * as THREE from 'three'
@@ -221,12 +221,18 @@ describe('Enemy', () => {
             return false
         }
 
-            // Force Random Strategy (Wall Follow might handle this uniquely)
-            ; (enemy as any).strategy = 0
-            ; (enemy as any).strategyTimer = 10
+        // Mock Math.random to ensure we pick a valid direction (e.g., 0.1 which is approx East)
+        // We need to return:
+        // 1. < 0.7 for strategy (Random)
+        // 2. A value that produces an East angle. cos(2PI*x). x=0 -> East.
+        // so mockVal = 0.
+
+        const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0)
 
             // Force pick
             ; (enemy as any).pickNewDirection(maze, closets)
+
+        randomSpy.mockRestore()
 
         const dir = (enemy as any).direction
 

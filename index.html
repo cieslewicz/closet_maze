@@ -6,43 +6,48 @@
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Closet Maze</title>
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-    }
-
-    canvas {
-      display: block;
-    }
-  </style>
+  <link rel="stylesheet" href="/src/style.css">
 </head>
 
 <body>
   <div id="ui-layer">
-    <!-- Main Menu -->
-    <div id="main-menu" class="screen active">
+    <div id="main-menu" class="active">
       <h1>Closet Maze</h1>
+      <p class="instructions">
+        <strong>Controls:</strong><br>
+        Move: WASD or Arrow Keys<br>
+        Look: Click & Drag Mouse<br>
+        Zoom: Mouse Scroll<br>
+        Hide: Walk into Closets<br>
+        <strong>Press 'H' for Help/Pause</strong>
+      </p>
       <button id="btn-start">Play Game</button>
-      <!-- <button id="btn-settings">Settings</button> -->
     </div>
 
-    <!-- HUD -->
-    <div id="hud" class="screen">
-      <div id="status-indicator">Status: Safe</div>
-      <button id="btn-pause" style="display:none;">Pause</button> <!-- Hidden for now -->
+    <div id="hud">
+      <div id="status-indicator">Safe</div>
+      <div class="help-hint">Press 'H' for Help</div>
     </div>
 
-    <!-- Game Over -->
-    <div id="game-over" class="screen">
-      <h1>You Were Caught!</h1>
+    <div id="help-screen">
+      <h2>Paused</h2>
+      <p class="instructions">
+        <strong>Controls:</strong><br>
+        Move: WASD or Arrow Keys<br>
+        Look: Click & Drag Mouse<br>
+        Zoom: Mouse Scroll<br>
+        Hide: Walk into Closets<br>
+      </p>
+      <button id="btn-resume">Resume</button>
+    </div>
+
+    <div id="game-over">
+      <h1>Game Over</h1>
       <button id="btn-retry">Try Again</button>
     </div>
 
-    <!-- Win Screen -->
-    <div id="win-screen" class="screen">
-      <h1>Escaped!</h1>
-      <p>You found the Golden Door.</p>
+    <div id="win-screen">
+      <h1>You Escaped!</h1>
       <button id="btn-play-again">Play Again</button>
     </div>
   </div>

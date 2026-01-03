@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { Game } from './Game'
-
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 // Mock WebGLRenderer to avoid JSDOM errors
 vi.mock('three', async () => {
@@ -17,16 +17,20 @@ vi.mock('three', async () => {
 })
 
 // Mock OrbitControls
+const mockUpdate = vi.fn()
+const mockTargetCopy = vi.fn()
+const mockControlsInstance = {
+    update: mockUpdate,
+    target: { copy: mockTargetCopy },
+    enableDamping: false,
+    enablePan: true, // Default to true to verify change to false
+    maxPolarAngle: 0,
+    minDistance: 0,
+    maxDistance: 0
+}
+
 vi.mock('three/examples/jsm/controls/OrbitControls.js', () => ({
-    OrbitControls: vi.fn().mockImplementation(() => ({
-        update: vi.fn(),
-        target: { copy: vi.fn() },
-        enableDamping: false,
-        enablePan: false,
-        maxPolarAngle: 0,
-        minDistance: 0,
-        maxDistance: 0
-    }))
+    OrbitControls: vi.fn().mockImplementation(() => mockControlsInstance)
 }))
 
 // Mock DOM
@@ -35,6 +39,11 @@ describe('Game Integration', () => {
     let game: Game
 
     beforeEach(() => {
+        // Reset mocks
+        vi.clearAllMocks()
+        mockControlsInstance.enableDamping = false
+        mockControlsInstance.enablePan = true
+
         // Setup minimal DOM for UI
         document.body.innerHTML = `
             <div id="ui-layer">
@@ -53,9 +62,6 @@ describe('Game Integration', () => {
 
     afterEach(() => {
         document.body.innerHTML = ''
-        // Clean up game loop? 
-        // Game.stop() is private/public? check
-        // Ideally we should stop the game to prevent requestAnimationFrame in background
     })
 
     it('should initialize and bind UI events', () => {
@@ -83,7 +89,24 @@ describe('Game Integration', () => {
         expect(hud?.classList.contains('active')).toBe(true)
     })
 
-    // Additional test: Win condition triggers Win Screen? 
-    // Hard to test integration without mocking large parts of Maze/Player to force win.
-    // relying on unit tests for logic + manual verif for visual switching.
+    it('should configure OrbitControls correctly', () => {
+        game = new Game()
+        expect(OrbitControls).toHaveBeenCalled()
+        expect(mockControlsInstance.enableDamping).toBe(true)
+        expect(mockControlsInstance.enablePan).toBe(false)
+        expect(mockUpdate).toHaveBeenCalled() // Initial update
+    })
+
+    it('should update controls target during game loop', () => {
+        game = new Game()
+
+        // Access private update method via cast
+        const dt = 0.016
+            ; (game as any).update(dt)
+
+        // Should copy player position to target
+        expect(mockTargetCopy).toHaveBeenCalled()
+        // Should call update
+        expect(mockUpdate).toHaveBeenCalledTimes(2) // 1 in constructor, 1 in loop
+    })
 })

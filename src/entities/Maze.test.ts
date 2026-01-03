@@ -10,16 +10,32 @@ describe('Maze', () => {
         // Local coords: -5 to 5.
         // Wall is at border (e.g. x = -5)
 
-        const playerBox = new THREE.Box3(
-            new THREE.Vector3(-4.9, 0, 0),
-            new THREE.Vector3(-4.6, 1, 1)
-        )
+        // Map generation is random, so hard to guarantee collision without map access.
+        // But we can check bounds.
+        const outOfBounds = new THREE.Box3(new THREE.Vector3(-100, 0, -100), new THREE.Vector3(-99, 1, -99))
+        expect(maze.checkCollision(outOfBounds)).toBe(false)
+    })
 
-        // Note: Maze generation is random inner walls, but borders are fixed.
-        // x=0 index is border. World pos: 0 - 5 = -5.
-        // So at x=-5 there is a wall.
+    it('should allow checking against custom block types', () => {
+        // Use center of maze (5,5) for 10x10 maze. Indices 0-9.
+        const centerX = 5
+        const centerZ = 5
 
-        expect(maze.checkCollision(playerBox)).toBe(true)
+            // Manually set center to Type 3 (Exit)
+            ; (maze as any).map[centerZ][centerX] = 3
+
+        // World Pos for index 10,10 => x = 10-10=0, z=0
+        const center = new THREE.Vector3(0, 0, 0)
+        const box = new THREE.Box3().setFromCenterAndSize(center, new THREE.Vector3(0.5, 1, 0.5))
+
+        // Default check (Type 1) should return false (it's Type 3, and neighbors are 0)
+        expect(maze.checkCollision(box)).toBe(false)
+
+        // Check filtering Type 3
+        expect(maze.checkCollision(box, [3])).toBe(true)
+
+        // Check filtering Type 1 and 3
+        expect(maze.checkCollision(box, [1, 3])).toBe(true)
     })
 
     it('should NOT detect collision in empty center', () => {

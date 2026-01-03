@@ -167,7 +167,7 @@ export class Maze {
         }
     }
 
-    public checkCollision(playerBox: THREE.Box3): boolean {
+    public checkCollision(playerBox: THREE.Box3, blockTypes: number[] = [1]): boolean {
         const pMin = playerBox.min
         const pMax = playerBox.max
         const corners = [
@@ -182,7 +182,7 @@ export class Maze {
             const gz = Math.round(p.z + this.height / 2)
 
             if (gx >= 0 && gx < this.width && gz >= 0 && gz < this.height) {
-                if (this.map[gz][gx] === 1) return true
+                if (blockTypes.includes(this.map[gz][gx])) return true
             }
         }
         return false

@@ -234,4 +234,22 @@ describe('Enemy', () => {
         expect(dir.z).toBeGreaterThanOrEqual(-0.1) // Not North
         expect(dir.x).toBeGreaterThanOrEqual(-0.1) // Not West
     })
+
+    it('should avoid the exit (type 3)', () => {
+        const closets: any[] = []
+        // Mock collision that blocks type 3
+        // We can inspect the 2nd arg 'blockTypes' passed to checkCollision
+        let checkedTypes: number[] = []
+
+        maze.checkCollision = (_box: THREE.Box3, blockTypes?: number[]) => {
+            if (blockTypes) checkedTypes = blockTypes
+            return false
+        }
+
+            ; (enemy as any).checkDirection(maze, closets, new THREE.Vector3(1, 0, 0))
+
+        // Check that we requested to block [1, 3]
+        expect(checkedTypes).toContain(1)
+        expect(checkedTypes).toContain(3)
+    })
 })

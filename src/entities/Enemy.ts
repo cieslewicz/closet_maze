@@ -156,7 +156,8 @@ export class Enemy {
     }
 
     private checkAnyCollision(box: THREE.Box3, maze: Maze, closets: Closet[]): boolean {
-        if (maze.checkCollision(box)) return true
+        // Block Walls (1) and Exits (3) for enemies
+        if (maze.checkCollision(box, [1, 3])) return true
         for (const closet of closets) {
             // Use bounding box for simple obstruction
             if (closet.getBoundingBox().intersectsBox(box)) return true

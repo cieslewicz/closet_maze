@@ -16,6 +16,19 @@ vi.mock('three', async () => {
     }
 })
 
+// Mock OrbitControls
+vi.mock('three/examples/jsm/controls/OrbitControls.js', () => ({
+    OrbitControls: vi.fn().mockImplementation(() => ({
+        update: vi.fn(),
+        target: { copy: vi.fn() },
+        enableDamping: false,
+        enablePan: false,
+        maxPolarAngle: 0,
+        minDistance: 0,
+        maxDistance: 0
+    }))
+}))
+
 // Mock DOM
 // JSDOM is enabled by Vitest, so we can use document APIs.
 describe('Game Integration', () => {

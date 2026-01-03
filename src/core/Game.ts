@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { InputManager } from './InputManager'
 import { Maze } from '../entities/Maze'
 import { Player } from '../entities/Player'
@@ -11,6 +12,7 @@ export class Game {
     private renderer: THREE.WebGLRenderer
     private scene: THREE.Scene
     private camera: THREE.PerspectiveCamera
+    private controls: OrbitControls
     private inputManager: InputManager
     private uiManager: UIManager
 
@@ -59,7 +61,15 @@ export class Game {
             1000
         )
         this.camera.position.set(0, 10, 10)
-        this.camera.lookAt(0, 0, 0)
+
+        // Controls setup
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement)
+        this.controls.enableDamping = true
+        this.controls.enablePan = false // Keep player centered
+        this.controls.maxPolarAngle = Math.PI / 2 - 0.1 // Don't go below ground
+        this.controls.minDistance = 3
+        this.controls.maxDistance = 20
+        this.controls.update() // Initial update
 
         // Basic Lighting
         this.initLights()
@@ -293,12 +303,15 @@ export class Game {
 
         this.uiManager.updateStatus(this.isHidden, isChased)
 
-        // Camera Follow
+        // Camera Follow (Controls Logic)
         const playerPos = this.player.getPosition()
-        this.camera.position.x = playerPos.x
-        this.camera.position.z = playerPos.z + 10
-        this.camera.position.y = 10
-        this.camera.lookAt(playerPos)
+
+        // Update the OrbitControls target to the player's position
+        // This makes the camera orbit AROUND the player
+        this.controls.target.copy(playerPos)
+        this.controls.update()
+
+        // Note: manual camera positioning is removed because OrbitControls handles it relative to target.
     }
 
     private render() {

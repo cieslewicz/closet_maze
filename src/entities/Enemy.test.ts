@@ -241,6 +241,62 @@ describe('Enemy', () => {
         expect(dir.x).toBeGreaterThanOrEqual(-0.1) // Not West
     })
 
+    it('should NOT chase player if line of sight is blocked by wall', () => {
+        // Place enemy at 0,0
+        // Place player at 0,2 (distance 2, within viewDistance)
+        // Place wall at 0,1
+
+        // Mock maze checkCollision
+        // 1. Enemy checks collision for movement -> False
+        // 2. Enemy checks LOS -> True (it hits wall)
+
+        // We need to spy on maze.checkCollision to return true for the wall check
+        // The wall check sends a box. The enemy sends body box for movement (large) and LOS probe (small 0.1)
+
+        const collisionSpy = vi.spyOn(maze, 'checkCollision').mockImplementation((box: THREE.Box3, blockTypes?: number[]) => {
+            const center = new THREE.Vector3()
+            box.getCenter(center)
+
+            // If checking near (0, 1) - approximate wall location
+            if (center.z > 0.4 && center.z < 1.6) {
+                // It's the wall!
+                return true
+            }
+            return false
+        })
+
+        const playerPos = new THREE.Vector3(0, 0, 2)
+        // Enemy at 0,0,1 (from constructor offset? No, mesh y is 1)
+        // Enemy constructed at 0,0. Mesh at 0,1,0.
+        // Player at 0,0,2.
+
+        // Update
+        enemy.update(0.1, playerPos, false, maze, [])
+
+        // Should NOT be chasing
+        // Access private state if possible or check if direction changed to face player (0,0,1)
+        // If wandering, direction matches wander logic (initially 1,0,0)
+        // If chasing, direction matches 0,0,1
+
+        // Check internal state via cast
+        const state = (enemy as any).state
+        expect(state).toBe(0) // WANDER (0) vs CHASE (1)
+
+        collisionSpy.mockRestore()
+    })
+
+    it('should chase player if line of sight is clear', () => {
+        // Clear LOS
+        const playerPos = new THREE.Vector3(0, 0, 2)
+
+        // Mock collision false always
+        vi.spyOn(maze, 'checkCollision').mockReturnValue(false)
+
+        enemy.update(0.1, playerPos, false, maze, [])
+
+        const state = (enemy as any).state
+        expect(state).toBe(1) // CHASE
+    })
     it('should avoid the exit (type 3)', () => {
         const closets: any[] = []
         // Mock collision that blocks type 3

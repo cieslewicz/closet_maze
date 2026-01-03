@@ -187,10 +187,11 @@ export class Enemy {
         const dist = this.mesh.position.distanceTo(playerPos)
         let canSee = false
 
-        // Check line of sight? (Optional improvement: raycast)
-        // For now, distance based check
+        // Check line of sight
         if (!isPlayerHidden && dist < this.viewDistance) {
-            canSee = true
+            if (this.checkLineOfSight(maze, closets, playerPos)) {
+                canSee = true
+            }
         }
 
         if (canSee) {
@@ -235,5 +236,45 @@ export class Enemy {
             this.mesh.position.z = oldPos.z
             this.pickNewDirection(maze, closets) // Immediately pick new open direction
         }
+    }
+
+    private checkLineOfSight(maze: Maze, closets: Closet[], playerPos: THREE.Vector3): boolean {
+        const start = this.mesh.position.clone()
+        // Eye level
+        start.y = 1
+        const end = playerPos.clone()
+        end.y = 1
+
+        const direction = new THREE.Vector3().subVectors(end, start)
+        const distance = direction.length()
+        direction.normalize()
+
+        // 1. Check Closets (Raycast)
+        const ray = new THREE.Ray(start, direction)
+        for (const closet of closets) {
+            const box = closet.getBoundingBox()
+            const intersection = ray.intersectBox(box, new THREE.Vector3())
+            if (intersection) {
+                // If collision is closer than player, blocked
+                if (start.distanceTo(intersection) < distance) {
+                    return false
+                }
+            }
+        }
+
+        // 2. Check Maze Walls (Ray Marching)
+        const stepSize = 0.5 // Check every 0.5 units
+        const steps = Math.floor(distance / stepSize)
+
+        for (let i = 1; i < steps; i++) {
+            const probe = start.clone().add(direction.clone().multiplyScalar(i * stepSize))
+            // Check if this point is in a wall
+            const box = new THREE.Box3().setFromCenterAndSize(probe, new THREE.Vector3(0.1, 0.1, 0.1))
+            if (maze.checkCollision(box, [1])) { // Check Wall(1)
+                return false
+            }
+        }
+
+        return true
     }
 }

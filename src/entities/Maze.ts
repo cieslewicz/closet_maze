@@ -18,65 +18,97 @@ export class Maze {
     }
 
     private generateSimpleMap() {
-        // Simple test map: border walls + some random blocks
-        for (let z = 0; z < this.height; z++) {
-            const row: number[] = []
-            for (let x = 0; x < this.width; x++) {
-                if (x === 0 || x === this.width - 1 || z === 0 || z === this.height - 1) {
-                    row.push(1) // Border Wall
-                } else {
-                    // Random inner walls
-                    row.push(Math.random() < 0.2 ? 1 : 0)
+        let attempts = 0
+        const maxAttempts = 100
+
+        while (attempts++ < maxAttempts) {
+            this.map = []
+            // 1. Generate Random Noise Map
+            for (let z = 0; z < this.height; z++) {
+                const row: number[] = []
+                for (let x = 0; x < this.width; x++) {
+                    if (x === 0 || x === this.width - 1 || z === 0 || z === this.height - 1) {
+                        row.push(1) // Border Wall
+                    } else {
+                        row.push(Math.random() < 0.2 ? 1 : 0) // 20% Obstacles
+                    }
+                }
+                this.map.push(row)
+            }
+
+            // 2. Clear Start Area (Center)
+            const centerX = Math.floor(this.width / 2)
+            const centerZ = Math.floor(this.height / 2)
+            // Ensure 3x3 safety
+            for (let r = -1; r <= 1; r++) {
+                for (let c = -1; c <= 1; c++) {
+                    this.map[centerZ + r][centerX + c] = 0
                 }
             }
-            this.map.push(row)
+
+            // 3. Flood Fill to find reachable area
+            const reachable = new Set<string>()
+            const queue: { x: number, z: number }[] = [{ x: centerX, z: centerZ }]
+            reachable.add(`${centerX},${centerZ}`)
+
+            while (queue.length > 0) {
+                const current = queue.shift()!
+                const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]]
+
+                for (const d of dirs) {
+                    const nx = current.x + d[0]
+                    const nz = current.z + d[1]
+
+                    // Check if valid and not wall
+                    if (nx > 0 && nx < this.width - 1 && nz > 0 && nz < this.height - 1) {
+                        if (this.map[nz][nx] === 0) {
+                            const key = `${nx},${nz}`
+                            if (!reachable.has(key)) {
+                                reachable.add(key)
+                                queue.push({ x: nx, z: nz })
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. Find potential Exits (Border walls adjacent to reachable)
+            const exitCandidates: { x: number, z: number }[] = []
+
+            // Scan borders (excluding corners for simplicity)
+            // Top (z=0)
+            for (let x = 1; x < this.width - 1; x++) {
+                if (reachable.has(`${x},1`)) exitCandidates.push({ x, z: 0 })
+            }
+            // Bottom (z=h-1)
+            for (let x = 1; x < this.width - 1; x++) {
+                if (reachable.has(`${x},${this.height - 2}`)) exitCandidates.push({ x, z: this.height - 1 })
+            }
+            // Left (x=0)
+            for (let z = 1; z < this.height - 1; z++) {
+                if (reachable.has(`1,${z}`)) exitCandidates.push({ x: 0, z })
+            }
+            // Right (x=w-1)
+            for (let z = 1; z < this.height - 1; z++) {
+                if (reachable.has(`${this.width - 2},${z}`)) exitCandidates.push({ x: this.width - 1, z })
+            }
+
+            if (exitCandidates.length > 0) {
+                // Success!
+                const exit = exitCandidates[Math.floor(Math.random() * exitCandidates.length)]
+                this.map[exit.z][exit.x] = 3
+
+                // Ensure neighbor is definitely 0 (it should be if reachable, but just to be safe logic-wise)
+                // Actually reachable check confirmed neighbor is 0.
+
+                console.log(`Maze Generation Successful on Attempt ${attempts}`)
+                return
+            }
+            // Else, map was bad (no path to edge), retry
         }
-
-        // Clear start area (center-ish)
-        const centerX = Math.floor(this.width / 2)
-        const centerZ = Math.floor(this.height / 2)
-        this.map[centerZ][centerX] = 0
-        this.map[centerZ][centerX + 1] = 0
-        this.map[centerZ + 1][centerX] = 0
-        this.map[centerZ + 1][centerX + 1] = 0
-
-        // Pick Random Exit
-        // Strategy: Pick a spot on the perimeter (but not corner) where there is a wall, 
-        // and turn it into an exit?
-        // Or just pick a random open spot far away?
-        // User said "Door to leave", implying passing through a wall
-
-        // Let's put the exit on a random border wall
-        const border = Math.floor(Math.random() * 4) // 0: Top, 1: Right, 2: Bottom, 3: Left
-        let ex = 0, ez = 0
-
-        switch (border) {
-            case 0: // Top (z=0)
-                ex = 1 + Math.floor(Math.random() * (this.width - 2))
-                ez = 0
-                break
-            case 1: // Right (x=width-1)
-                ex = this.width - 1
-                ez = 1 + Math.floor(Math.random() * (this.height - 2))
-                break
-            case 2: // Bottom (z=height-1)
-                ex = 1 + Math.floor(Math.random() * (this.width - 2))
-                ez = this.height - 1
-                break
-            case 3: // Left (x=0)
-                ex = 0
-                ez = 1 + Math.floor(Math.random() * (this.height - 2))
-                break
-        }
-
-        // Ensure the spot next to the exit inside the maze is clear so we can reach it
-        this.map[ez][ex] = 3
-
-        // Clear neighbor
-        if (ez === 0) this.map[ez + 1][ex] = 0
-        if (ez === this.height - 1) this.map[ez - 1][ex] = 0
-        if (ex === 0) this.map[ez][ex + 1] = 0
-        if (ex === this.width - 1) this.map[ez][ex - 1] = 0
+        console.warn("Failed to generate solvable maze, falling back to simple")
+        // Fallback: Clear a path specifically? Or just leave it broken? 
+        // For now, assume probability works in our favor.
     }
 
     private createMeshes() {

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { Game } from './Game'
-import * as THREE from 'three'
+
 
 // Mock WebGLRenderer to avoid JSDOM errors
 vi.mock('three', async () => {

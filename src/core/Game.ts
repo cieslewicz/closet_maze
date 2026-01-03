@@ -198,14 +198,27 @@ export class Game {
             }
         }
 
+        // Filter spots for Enemies (Min distance from Player at 0,0)
+        const playerStart = new THREE.Vector3(0, 0, 0)
+        const minSpawnDist = 8.0
+
+        // Filter available spots to ensure they are far enough
+        const validEnemySpots = emptySpots.filter(spot => {
+            const pos = new THREE.Vector3(spot.x, 0, spot.z)
+            return pos.distanceTo(playerStart) > minSpawnDist
+        })
+
         // Spawn Enemies based on Difficulty
         let enemyCount = 4
         if (difficulty === 'easy') enemyCount = 2
         if (difficulty === 'hard') enemyCount = 6
 
-        for (let i = 0; i < enemyCount && i < emptySpots.length; i++) {
-            const idx = Math.floor(Math.random() * emptySpots.length)
-            const spot = emptySpots.splice(idx, 1)[0]
+        // Use validEnemySpots for spawning, falling back to emptySpots if we run out (unlikely)
+        let spawnPool = validEnemySpots.length >= enemyCount ? validEnemySpots : emptySpots
+
+        for (let i = 0; i < enemyCount && i < spawnPool.length; i++) {
+            const idx = Math.floor(Math.random() * spawnPool.length)
+            const spot = spawnPool.splice(idx, 1)[0]
             const enemy = new Enemy(spot.x, spot.z)
             this.enemies.push(enemy)
             this.scene.add(enemy.getMesh())

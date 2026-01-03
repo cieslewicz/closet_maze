@@ -208,4 +208,19 @@ describe('Game Integration', () => {
             ; (game as any).initLevel('hard')
         expect((game as any).enemies.length).toBe(6)
     })
+
+    it('should spawn enemies far away from player (no spawn camping)', () => {
+        // Run multiple times for randomness
+        for (let i = 0; i < 5; i++) {
+            game = new Game()
+            const enemies: any[] = (game as any).enemies
+            const playerStart = new THREE.Vector3(0, 0, 0)
+
+            for (const enemy of enemies) {
+                const dist = enemy.mesh.position.distanceTo(playerStart)
+                // Should use minSpawnDist = 8.0, but let's give a tiny margin or assert > 7.9
+                expect(dist).toBeGreaterThanOrEqual(8.0)
+            }
+        }
+    })
 })

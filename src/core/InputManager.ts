@@ -2,7 +2,10 @@ export class InputManager {
     public keys: { [key: string]: boolean } = {}
     public axis: { x: number; y: number } = { x: 0, y: 0 }
 
-    constructor() {
+    private useArrowKeys: boolean = true
+
+    constructor(options: { useArrowKeys?: boolean } = {}) {
+        this.useArrowKeys = options.useArrowKeys ?? true
         this.addListeners()
     }
 
@@ -31,10 +34,15 @@ export class InputManager {
         this.axis.x = 0
         this.axis.y = 0
 
-        if (this.keys['KeyW'] || this.keys['ArrowUp']) this.axis.y = 1
-        if (this.keys['KeyS'] || this.keys['ArrowDown']) this.axis.y = -1
-        if (this.keys['KeyA'] || this.keys['ArrowLeft']) this.axis.x = -1
-        if (this.keys['KeyD'] || this.keys['ArrowRight']) this.axis.x = 1
+        const up = this.keys['KeyW'] || (this.useArrowKeys && this.keys['ArrowUp'])
+        const down = this.keys['KeyS'] || (this.useArrowKeys && this.keys['ArrowDown'])
+        const left = this.keys['KeyA'] || (this.useArrowKeys && this.keys['ArrowLeft'])
+        const right = this.keys['KeyD'] || (this.useArrowKeys && this.keys['ArrowRight'])
+
+        if (up) this.axis.y = 1
+        if (down) this.axis.y = -1
+        if (left) this.axis.x = -1
+        if (right) this.axis.x = 1
 
         // Diagonal Normalization could be added here if needed, 
         // but usually handled by movement controller

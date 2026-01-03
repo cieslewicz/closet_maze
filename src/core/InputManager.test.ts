@@ -37,4 +37,17 @@ describe('InputManager', () => {
         window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW' }))
         expect(inputManager.getAxis().y).toBe(0)
     })
+    it('should ignore Arrow keys when configured to do so', () => {
+        const strictInputManager = new InputManager({ useArrowKeys: false })
+
+        // Arrow Up should NOT trigger Y movement
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowUp' }))
+        expect(strictInputManager.getAxis().y).toBe(0)
+
+        // WASD should still work
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' }))
+        expect(strictInputManager.getAxis().y).toBe(1)
+
+        strictInputManager.dispose()
+    })
 })

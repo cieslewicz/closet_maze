@@ -73,6 +73,7 @@ export class Game {
 
         // Controls setup
         this.controls = new OrbitControls(this.camera, this.renderer.domElement)
+        this.controls.listenToKeyEvents(window)
         this.controls.enableDamping = true
         this.controls.enablePan = false // Keep player centered
         this.controls.maxPolarAngle = Math.PI / 2 - 0.1 // Don't go below ground
@@ -86,7 +87,7 @@ export class Game {
         // Initialize Entities
         this.initLevel()
 
-        this.inputManager = new InputManager()
+        this.inputManager = new InputManager({ useArrowKeys: false })
         this.clock = new THREE.Clock()
 
         // Resize handler
@@ -328,9 +329,60 @@ export class Game {
 
         this.uiManager.updateStatus(this.isHidden, isChased)
 
-        // Camera Follow (Controls Logic)
+        // Camera Follow & Controls Logic
         const playerPos = this.player.getPosition()
         this.controls.target.copy(playerPos)
+
+        // Manual Camera Rotation via Keys (OrbitControls keys are for panning, so we do this manually)
+        const ROTATE_SPEED = 2.0 * dt
+        let rotateH = 0
+        let rotateV = 0
+
+        if (this.inputManager.isKeyPressed('ArrowLeft')) rotateH -= ROTATE_SPEED
+        if (this.inputManager.isKeyPressed('ArrowRight')) rotateH += ROTATE_SPEED
+        if (this.inputManager.isKeyPressed('ArrowUp')) rotateV -= ROTATE_SPEED
+        if (this.inputManager.isKeyPressed('ArrowDown')) rotateV += ROTATE_SPEED
+
+        if (rotateH !== 0 || rotateV !== 0) {
+            const offset = new THREE.Vector3().copy(this.camera.position).sub(this.controls.target)
+            const spherical = new THREE.Spherical().setFromVector3(offset)
+
+            spherical.theta += rotateH
+            spherical.phi += rotateV
+
+            // Clamp vertical rotation (phi) to avoid going below ground or flipping
+            spherical.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, spherical.phi))
+            spherical.makeSafe()
+
+            offset.setFromSpherical(spherical)
+            this.camera.position.copy(this.controls.target).add(offset)
+            this.camera.lookAt(this.controls.target)
+        }
+
+        // Manual Zoom (Z/X or +/-)
+        const ZOOM_SPEED = 10.0 * dt
+        let zoomDelta = 0
+
+        if (this.inputManager.isKeyPressed('KeyZ') || this.inputManager.isKeyPressed('Equal') || this.inputManager.isKeyPressed('NumpadAdd')) {
+            zoomDelta -= ZOOM_SPEED
+        }
+        if (this.inputManager.isKeyPressed('KeyX') || this.inputManager.isKeyPressed('Minus') || this.inputManager.isKeyPressed('NumpadSubtract')) {
+            zoomDelta += ZOOM_SPEED
+        }
+
+        if (zoomDelta !== 0) {
+            const offset = new THREE.Vector3().copy(this.camera.position).sub(this.controls.target)
+            const spherical = new THREE.Spherical().setFromVector3(offset)
+
+            spherical.radius += zoomDelta
+            // Clamp radius
+            spherical.radius = Math.max(this.controls.minDistance, Math.min(this.controls.maxDistance, spherical.radius))
+            spherical.makeSafe()
+
+            offset.setFromSpherical(spherical)
+            this.camera.position.copy(this.controls.target).add(offset)
+        }
+
         this.controls.update()
     }
 

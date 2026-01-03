@@ -51,7 +51,7 @@ export class Closet {
         return this.mesh
     }
 
-    public checkEntry(player: THREE.Mesh): boolean {
+    public checkEntry(player: THREE.Object3D): boolean {
         const playerBox = new THREE.Box3().setFromObject(player)
         if (!this.bounds.intersectsBox(playerBox)) {
             return false

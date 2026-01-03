@@ -197,12 +197,30 @@ export class Game {
         }
 
         // Tint Player
-        const playerMat = this.player.getMesh().material as THREE.MeshStandardMaterial
-        if (this.isHidden) {
-            playerMat.color.setHex(0x0000ff)
-        } else {
-            playerMat.color.setHex(0x00ff00)
-        }
+        const playerGroup = this.player.getMesh()
+        playerGroup.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                const mat = child.material as THREE.MeshStandardMaterial
+                // Only tint body parts that are not eyes? 
+                // Or just tint everything? Tinting eyes blue might look funny but acceptable.
+                // Let's preserve original color if we can, but storing it is complex.
+                // Simple hack: If hidden, override emissive? Or color.
+
+                // Better: 
+                // If hidden, set material to blue-ish.
+                // If not hidden, restore original color? 
+                // We don't have original color stored easily.
+
+                // Let's just set emissive for "Hidden" state to Blue, and Black otherwise.
+                if (this.isHidden) {
+                    mat.emissive.setHex(0x0000ff)
+                    mat.emissiveIntensity = 0.5
+                } else {
+                    mat.emissive.setHex(0x000000)
+                    mat.emissiveIntensity = 0
+                }
+            }
+        })
 
         // Update Enemies
         let isChased = false

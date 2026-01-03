@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { Maze } from './Maze'
+import { Closet } from './Closet'
 
 enum EnemyState {
     WANDER,
@@ -72,7 +73,7 @@ export class Enemy {
         this.floatOffset = Math.random() * 100
     }
 
-    private pickNewDirection(maze: Maze) {
+    private pickNewDirection(maze: Maze, closets: Closet[]) {
         // Strategy Switching
         if (this.strategyTimer <= 0) {
             // Switch bias: 70% Random, 30% Wall Follow
@@ -81,13 +82,13 @@ export class Enemy {
         }
 
         if (this.strategy === WanderStrategy.WALL_FOLLOW) {
-            this.pickWallFollowDirection(maze)
+            this.pickWallFollowDirection(maze, closets)
         } else {
-            this.pickRandomSmartDirection(maze)
+            this.pickRandomSmartDirection(maze, closets)
         }
     }
 
-    private pickWallFollowDirection(maze: Maze) {
+    private pickWallFollowDirection(maze: Maze, closets: Closet[]) {
         // Simple Right-Hand Rule Approximation
         // 1. Try Right (Turn -90)
         // 2. Try Front (Forward)
@@ -102,14 +103,14 @@ export class Enemy {
         const candidates = [right, front, left, back]
 
         for (const dir of candidates) {
-            if (this.checkDirection(maze, dir)) {
+            if (this.checkDirection(maze, closets, dir)) {
                 this.setDirection(dir)
                 return
             }
         }
     }
 
-    private pickRandomSmartDirection(maze: Maze) {
+    private pickRandomSmartDirection(maze: Maze, closets: Closet[]) {
         // Try up to 8 times to find a valid direction
         for (let i = 0; i < 10; i++) {
             const angle = Math.random() * Math.PI * 2
@@ -122,7 +123,7 @@ export class Enemy {
                 if (dot < -0.5 && i < 8) continue // Retry to avoid U-turn
             }
 
-            if (this.checkDirection(maze, dir)) {
+            if (this.checkDirection(maze, closets, dir)) {
                 this.setDirection(dir)
                 return
             }
@@ -133,14 +134,24 @@ export class Enemy {
         this.setDirection(new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle)))
     }
 
-    private checkDirection(maze: Maze, dir: THREE.Vector3): boolean {
+    private checkDirection(maze: Maze, closets: Closet[], dir: THREE.Vector3): boolean {
         const probeDist = 1.0
         const probePos = this.mesh.position.clone().add(dir.clone().multiplyScalar(probeDist))
         const probeBox = new THREE.Box3().setFromObject(this.body)
         const size = new THREE.Vector3()
         probeBox.getSize(size)
         probeBox.setFromCenterAndSize(probePos, size)
-        return !maze.checkCollision(probeBox)
+
+        return !this.checkAnyCollision(probeBox, maze, closets)
+    }
+
+    private checkAnyCollision(box: THREE.Box3, maze: Maze, closets: Closet[]): boolean {
+        if (maze.checkCollision(box)) return true
+        for (const closet of closets) {
+            // Use bounding box for simple obstruction
+            if (closet.getBoundingBox().intersectsBox(box)) return true
+        }
+        return false
     }
 
     private setDirection(dir: THREE.Vector3) {
@@ -156,7 +167,7 @@ export class Enemy {
         return this.mesh
     }
 
-    public update(dt: number, playerPos: THREE.Vector3, isPlayerHidden: boolean, maze: Maze) {
+    public update(dt: number, playerPos: THREE.Vector3, isPlayerHidden: boolean, maze: Maze, closets: Closet[]) {
         // 1. Animation (Float)
         this.floatOffset += dt * 3
         this.body.position.y = 0.2 + Math.sin(this.floatOffset) * 0.1
@@ -165,6 +176,8 @@ export class Enemy {
         const dist = this.mesh.position.distanceTo(playerPos)
         let canSee = false
 
+        // Check line of sight? (Optional improvement: raycast)
+        // For now, distance based check
         if (!isPlayerHidden && dist < this.viewDistance) {
             canSee = true
         }
@@ -185,7 +198,7 @@ export class Enemy {
                 this.wanderTimer -= dt
                 this.strategyTimer -= dt
                 if (this.wanderTimer <= 0) {
-                    this.pickNewDirection(maze)
+                    this.pickNewDirection(maze, closets)
                 }
             }
         }
@@ -199,17 +212,17 @@ export class Enemy {
         // Move X
         this.mesh.position.x += velocity.x
         this.mesh.updateMatrixWorld()
-        if (maze.checkCollision(new THREE.Box3().setFromObject(this.body))) { // Collide body only
+        if (this.checkAnyCollision(new THREE.Box3().setFromObject(this.body), maze, closets)) { // Collide body only
             this.mesh.position.x = oldPos.x
-            this.pickNewDirection(maze) // Immediately pick new open direction
+            this.pickNewDirection(maze, closets) // Immediately pick new open direction
         }
 
         // Move Z
         this.mesh.position.z += velocity.z
         this.mesh.updateMatrixWorld()
-        if (maze.checkCollision(new THREE.Box3().setFromObject(this.body))) {
+        if (this.checkAnyCollision(new THREE.Box3().setFromObject(this.body), maze, closets)) {
             this.mesh.position.z = oldPos.z
-            this.pickNewDirection(maze) // Immediately pick new open direction
+            this.pickNewDirection(maze, closets) // Immediately pick new open direction
         }
     }
 }

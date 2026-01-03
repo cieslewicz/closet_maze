@@ -305,7 +305,7 @@ export class Game {
         // Update Enemies
         let isChased = false
         for (const enemy of this.enemies) {
-            enemy.update(dt, this.player.getPosition(), this.isHidden, this.maze)
+            enemy.update(dt, this.player.getPosition(), this.isHidden, this.maze, this.closets)
 
             const dist = enemy.getMesh().position.distanceTo(this.player.getPosition())
             if (dist < 5 && !this.isHidden) isChased = true

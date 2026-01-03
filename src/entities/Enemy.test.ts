@@ -14,6 +14,9 @@ describe('Enemy', () => {
         maze.checkCollision = () => false // Mock collision to always be false 
     })
 
+    // Helper to mock closets (empty for most tests)
+    const mockClosets: any[] = []
+
     it('should initialize', () => {
         expect(enemy).toBeDefined()
         expect(enemy.getMesh().position.x).toBe(0)
@@ -28,7 +31,8 @@ describe('Enemy', () => {
         const initialX = enemy.getMesh().position.x
 
         // Update
-        enemy.update(dt, playerPos, false, maze)
+        // Update
+        enemy.update(dt, playerPos, false, maze, mockClosets)
 
         // Should have moved towards player (positive x)
         expect(enemy.getMesh().position.x).toBeGreaterThan(initialX)
@@ -45,15 +49,19 @@ describe('Enemy', () => {
         // Or simpler: Check if it moves DIRECTLY towards player.
 
         // Actually, let's just assert no error for now, testing random behavior is hard without mocking Math.random
-        enemy.update(dt, playerPos, true, maze)
+        // Actually, let's just assert no error for now, testing random behavior is hard without mocking Math.random
+        enemy.update(dt, playerPos, true, maze, mockClosets)
         expect(true).toBe(true)
     })
 
     it('should immediately pick new valid direction on collision', () => {
         // 1. Initial Update to set up wander timer and direction
-        enemy.update(0.1, new THREE.Vector3(100, 0, 100), true, maze)
+        enemy.update(0.1, new THREE.Vector3(100, 0, 100), true, maze, mockClosets)
 
         const initialDir = (enemy as any).direction.clone()
+
+            // Force Random strategy to prevent WallFollow from just picking 'Forward' and keeping same direction
+            ; (enemy as any).strategy = 0 // WanderStrategy.RANDOM
 
         // 2. Mock Collision behavior
         // logic: checkCollision returns true first (hit wall), then true (probe 1), then false (probe 2)
@@ -65,7 +73,7 @@ describe('Enemy', () => {
         }
 
         // 3. Update again (should hit wall)
-        enemy.update(0.1, new THREE.Vector3(100, 0, 100), true, maze)
+        enemy.update(0.1, new THREE.Vector3(100, 0, 100), true, maze, mockClosets)
 
         // 4. Verify results
         // Should have called checkCollision multiple times
@@ -93,7 +101,7 @@ describe('Enemy', () => {
             ; (enemy as any).strategyTimer = 10
 
             // Force new direction pick
-            ; (enemy as any).pickNewDirection(maze)
+            ; (enemy as any).pickNewDirection(maze, mockClosets)
 
         const newDir = (enemy as any).direction
 
@@ -128,11 +136,35 @@ describe('Enemy', () => {
 
         maze.checkCollision = () => false // Open everywhere
 
-            ; (enemy as any).pickNewDirection(maze)
+            ; (enemy as any).pickNewDirection(maze, mockClosets)
 
         const newDir = (enemy as any).direction
         // Should have turned Right (East) because it's open and first choice in our logic
         expect(newDir.x).toBeCloseTo(1)
         expect(newDir.z).toBeCloseTo(0)
+    })
+
+    it('should avoid closets', () => {
+        // Mock a closet collision
+        const mockCloset = {
+            getBoundingBox: () => ({
+                intersectsBox: () => true // Always collides
+            })
+        }
+        const closets = [mockCloset] as any[]
+
+            // Setup Enemy moving East
+            ; (enemy as any).direction.set(1, 0, 0)
+
+        // Mock probe logic to fail first then succeed
+        // (Similar to wall collision logic, but trigger via closet)
+
+        // For simplicity, just verify that checkDirection returns false (collision)
+        const isSafe = (enemy as any).checkDirection(maze, closets, new THREE.Vector3(1, 0, 0))
+        expect(isSafe).toBe(false)
+
+        // And safe when no closets
+        const isSafeEmpty = (enemy as any).checkDirection(maze, [], new THREE.Vector3(1, 0, 0))
+        expect(isSafeEmpty).toBe(true)
     })
 })

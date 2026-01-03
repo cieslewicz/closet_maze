@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { InputManager } from '../core/InputManager'
+
 
 export class Player {
     private mesh: THREE.Group
@@ -60,13 +60,14 @@ export class Player {
         this.mesh.add(backpack)
     }
 
-    public update(dt: number, input: InputManager): THREE.Vector3 {
-        const axis = input.getAxis()
-        const dx = axis.x * this.speed * dt
-        const dz = -axis.y * this.speed * dt // Up key is -Z
+    public update(dt: number, moveDir: THREE.Vector3): THREE.Vector3 {
+        // moveDir is expected to be normalized direction of movement (or 0)
+
+        const dx = moveDir.x * this.speed * dt
+        const dz = moveDir.z * this.speed * dt
 
         // Rotate character to face movement direction
-        if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
+        if (moveDir.lengthSq() > 0.001) {
 
             // atan2(x, z): 
             // if moving -Z (forward): x=0, z=-1. atan2(0, -1) = PI.

@@ -229,8 +229,28 @@ export class Game {
     }
 
     private update(dt: number) {
-        // 1. Calculate desired movement
-        const moveDelta = this.player.update(dt, this.inputManager)
+        // 1. Calculate desired movement (Camera Relative)
+        const axis = this.inputManager.getAxis() // x: -1/1 (Left/Right), y: -1/1 (Down/Up)
+
+        // Get Camera Forward and Right vectors projected on XZ plane
+        const forward = new THREE.Vector3()
+        this.camera.getWorldDirection(forward)
+        forward.y = 0
+        forward.normalize()
+
+        const right = new THREE.Vector3()
+        right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize()
+
+        // Combine inputs:
+        // Input Up (y=1) -> Move Forward
+        // Input Right (x=1) -> Move Right
+        const moveDir = new THREE.Vector3()
+        moveDir.addScaledVector(forward, axis.y) // Up/Down
+        moveDir.addScaledVector(right, axis.x)   // Left/Right
+
+        if (moveDir.lengthSq() > 1) moveDir.normalize() // Prevent fast diagonal
+
+        const moveDelta = this.player.update(dt, moveDir)
 
         // Helper for collision checking against maze OR closets
         const checkAnyCollision = (box: THREE.Box3) => {

@@ -38,8 +38,10 @@ export class Maze {
         this.map[centerZ][centerX] = 0
         this.map[centerZ][centerX + 1] = 0
         this.map[centerZ + 1][centerX] = 0
-        // Ensure sufficient space
         this.map[centerZ + 1][centerX + 1] = 0
+
+        // Set Exit (3) at top left
+        this.map[1][1] = 3
     }
 
     private createMeshes() {
@@ -56,6 +58,12 @@ export class Maze {
                     wall.updateMatrixWorld()
                     this.walls.push(wall)
                     this.group.add(wall)
+                } else if (this.map[z][x] === 3) {
+                    const exitGeo = new THREE.BoxGeometry(1, 0.1, 1)
+                    const exitMat = new THREE.MeshStandardMaterial({ color: 0xffd700 }) // Gold
+                    const exit = new THREE.Mesh(exitGeo, exitMat)
+                    exit.position.set(x - this.width / 2, 0.05, z - this.height / 2)
+                    this.group.add(exit)
                 }
             }
         }
@@ -91,11 +99,36 @@ export class Maze {
         return false
     }
 
+    public checkWin(playerPos: THREE.Vector3): boolean {
+        const gx = Math.round(playerPos.x + this.width / 2)
+        const gz = Math.round(playerPos.z + this.height / 2)
+        if (gx >= 0 && gx < this.width && gz >= 0 && gz < this.height) {
+            return this.map[gz][gx] === 3
+        }
+        return false
+    }
+
     public getGroup() {
         return this.group
     }
 
     public getWalls() {
         return this.walls
+    }
+
+    public getEmptySpots(): { x: number, z: number }[] {
+        const spots: { x: number, z: number }[] = []
+        for (let z = 1; z < this.height - 1; z++) {
+            for (let x = 1; x < this.width - 1; x++) {
+                if (this.map[z][x] === 0) {
+                    // Return world coordinates
+                    spots.push({
+                        x: x - this.width / 2,
+                        z: z - this.height / 2
+                    })
+                }
+            }
+        }
+        return spots
     }
 }

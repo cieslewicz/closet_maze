@@ -2,6 +2,8 @@ import * as THREE from 'three'
 import { InputManager } from './InputManager'
 import { Maze } from '../entities/Maze'
 import { Player } from '../entities/Player'
+import { Closet } from '../entities/Closet'
+import { Enemy } from '../entities/Enemy'
 
 export class Game {
     private canvas: HTMLCanvasElement
@@ -17,6 +19,9 @@ export class Game {
     // Entities
     private player: Player
     private maze: Maze
+    private closets: Closet[] = []
+    private enemies: Enemy[] = []
+    private isHidden: boolean = false
 
     constructor() {
         this.canvas = document.createElement('canvas')
@@ -56,6 +61,27 @@ export class Game {
         // Maze Setup
         this.maze = new Maze(20, 20)
         this.scene.add(this.maze.getGroup())
+
+        // Closets & Enemies
+        const emptySpots = this.maze.getEmptySpots()
+
+        // Spawn 5 random closets
+        for (let i = 0; i < 5 && i < emptySpots.length; i++) {
+            const idx = Math.floor(Math.random() * emptySpots.length)
+            const spot = emptySpots.splice(idx, 1)[0]
+            const closet = new Closet(spot.x, spot.z)
+            this.closets.push(closet)
+            this.scene.add(closet.getMesh())
+        }
+
+        // Spawn 2 Enemies
+        for (let i = 0; i < 2 && i < emptySpots.length; i++) {
+            const idx = Math.floor(Math.random() * emptySpots.length)
+            const spot = emptySpots.splice(idx, 1)[0]
+            const enemy = new Enemy(spot.x, spot.z)
+            this.enemies.push(enemy)
+            this.scene.add(enemy.getMesh())
+        }
 
         // Floor (Adjusted for Maze)
         const floorGeo = new THREE.PlaneGeometry(30, 30)
@@ -110,6 +136,42 @@ export class Game {
             if (this.maze.checkCollision(this.player.getBoundingBox())) {
                 this.player.getMesh().position.z -= moveDelta.z // Revert
             }
+        }
+
+        // Check Hiding
+        this.isHidden = false
+        const playerBox = this.player.getBoundingBox()
+        for (const closet of this.closets) {
+            if (closet.checkEntry(playerBox)) {
+                this.isHidden = true
+                break
+            }
+        }
+
+        // Debug Hidden Status (Tint player maybe?)
+        if (this.isHidden) {
+            (this.player.getMesh().material as THREE.MeshStandardMaterial).color.setHex(0x0000ff) // Blue when hidden
+        } else {
+            (this.player.getMesh().material as THREE.MeshStandardMaterial).color.setHex(0x00ff00) // Green normal
+        }
+
+        // Update Enemies
+        for (const enemy of this.enemies) {
+            enemy.update(dt, this.player.getPosition(), this.isHidden, this.maze)
+
+            // Simple Game Over Check
+            const dist = enemy.getMesh().position.distanceTo(this.player.getPosition())
+            if (dist < 0.75 && !this.isHidden) {
+                console.log("GAME OVER")
+                // Reset player pos loop for now
+                this.player.setPosition(0, 0)
+            }
+        }
+
+        // Check Win
+        if (this.maze.checkWin(this.player.getPosition())) {
+            console.log("YOU WIN!")
+            this.player.setPosition(0, 0) // Reset for now
         }
 
         // Camera Follow

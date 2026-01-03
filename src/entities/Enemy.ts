@@ -135,14 +135,24 @@ export class Enemy {
     }
 
     private checkDirection(maze: Maze, closets: Closet[], dir: THREE.Vector3): boolean {
-        const probeDist = 1.0
-        const probePos = this.mesh.position.clone().add(dir.clone().multiplyScalar(probeDist))
-        const probeBox = new THREE.Box3().setFromObject(this.body)
-        const size = new THREE.Vector3()
-        probeBox.getSize(size)
-        probeBox.setFromCenterAndSize(probePos, size)
+        // Multi-stage probe to catch thin obstacles
+        const maxDist = 1.0
+        const steps = 3
+        const stepSize = maxDist / steps
 
-        return !this.checkAnyCollision(probeBox, maze, closets)
+        for (let i = 1; i <= steps; i++) {
+            const dist = i * stepSize
+            const probePos = this.mesh.position.clone().add(dir.clone().multiplyScalar(dist))
+            const probeBox = new THREE.Box3().setFromObject(this.body)
+            const size = new THREE.Vector3()
+            probeBox.getSize(size)
+            probeBox.setFromCenterAndSize(probePos, size)
+
+            if (this.checkAnyCollision(probeBox, maze, closets)) {
+                return false // Blocked
+            }
+        }
+        return true // Clear
     }
 
     private checkAnyCollision(box: THREE.Box3, maze: Maze, closets: Closet[]): boolean {

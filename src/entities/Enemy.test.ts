@@ -167,4 +167,71 @@ describe('Enemy', () => {
         const isSafeEmpty = (enemy as any).checkDirection(maze, [], new THREE.Vector3(1, 0, 0))
         expect(isSafeEmpty).toBe(true)
     })
+
+    it('should detect thin obstacles via multi-stage probe', () => {
+        // Mock collision that only returns true at distance 0.6 (middle of probe)
+        // checkDirection probes at 0.33, 0.66, 1.0.
+        // Let's say obstacle is at 0.6.
+        // Single probe at 1.0 would miss it (assuming point check or small box).
+        // But our box check is continuous along path? No, discrete steps.
+
+        const closets: any[] = []
+
+        let checkedDistances: number[] = []
+
+        // Spy on checkAnyCollision to see what boxes are checked
+        // We can't easy spy private method.
+        // Instead, we mock maze.checkCollision and infer position from the box passed.
+
+        maze.checkCollision = (box: THREE.Box3) => {
+            const center = new THREE.Vector3()
+            box.getCenter(center)
+            // Enemy starts at 0,0. Moving East (1,0,0).
+            // Probes should be at x = 0.33, 0.66, 1.0
+            checkedDistances.push(center.x)
+            return false
+        }
+
+            ; (enemy as any).checkDirection(maze, closets, new THREE.Vector3(1, 0, 0))
+
+        // Verify we probed multiple times
+        expect(checkedDistances.length).toBeGreaterThanOrEqual(3)
+        expect(checkedDistances[0]).toBeCloseTo(0.33, 1)
+        expect(checkedDistances[checkedDistances.length - 1]).toBeCloseTo(1.0, 1)
+    })
+
+    it('should avoid jitter in corners (blocked front and side)', () => {
+        // Setup: Enemy in corner.
+        // Front (North 0,0,-1) is blocked.
+        // Left (West -1,0,0) is blocked.
+        // Should pick Right (East) or Back (South).
+
+        const closets: any[] = []
+
+        // Mock collision
+        maze.checkCollision = (box: THREE.Box3) => {
+            const center = new THREE.Vector3()
+            box.getCenter(center)
+
+            // Block North (z < 0)
+            if (center.z < -0.1) return true
+            // Block West (x < -0.1)
+            if (center.x < -0.1) return true
+
+            return false
+        }
+
+            // Force Random Strategy (Wall Follow might handle this uniquely)
+            ; (enemy as any).strategy = 0
+            ; (enemy as any).strategyTimer = 10
+
+            // Force pick
+            ; (enemy as any).pickNewDirection(maze, closets)
+
+        const dir = (enemy as any).direction
+
+        // Should NOT be North or West
+        expect(dir.z).toBeGreaterThanOrEqual(-0.1) // Not North
+        expect(dir.x).toBeGreaterThanOrEqual(-0.1) // Not West
+    })
 })

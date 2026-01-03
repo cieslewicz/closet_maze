@@ -1,17 +1,52 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Closet Maze</title>
-    <style>
-      body { margin: 0; overflow: hidden; }
-      canvas { display: block; }
-    </style>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Closet Maze</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="ui-layer">
+    <!-- Main Menu -->
+    <div id="main-menu" class="screen active">
+      <h1>Closet Maze</h1>
+      <button id="btn-start">Play Game</button>
+      <!-- <button id="btn-settings">Settings</button> -->
+    </div>
+
+    <!-- HUD -->
+    <div id="hud" class="screen">
+      <div id="status-indicator">Status: Safe</div>
+      <button id="btn-pause" style="display:none;">Pause</button> <!-- Hidden for now -->
+    </div>
+
+    <!-- Game Over -->
+    <div id="game-over" class="screen">
+      <h1>You Were Caught!</h1>
+      <button id="btn-retry">Try Again</button>
+    </div>
+
+    <!-- Win Screen -->
+    <div id="win-screen" class="screen">
+      <h1>Escaped!</h1>
+      <p>You found the Golden Door.</p>
+      <button id="btn-play-again">Play Again</button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
 </html>

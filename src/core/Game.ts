@@ -4,6 +4,7 @@ import { Maze } from '../entities/Maze'
 import { Player } from '../entities/Player'
 import { Closet } from '../entities/Closet'
 import { Enemy } from '../entities/Enemy'
+import { UIManager } from './UIManager'
 
 export class Game {
     private canvas: HTMLCanvasElement
@@ -11,22 +12,32 @@ export class Game {
     private scene: THREE.Scene
     private camera: THREE.PerspectiveCamera
     private inputManager: InputManager
+    private uiManager: UIManager
 
     // Time management
     private clock: THREE.Clock
     private isRunning: boolean = false
 
     // Entities
-    private player: Player
-    private maze: Maze
+    private player!: Player
+    private maze!: Maze
     private closets: Closet[] = []
     private enemies: Enemy[] = []
     private isHidden: boolean = false
 
     constructor() {
-        this.canvas = document.createElement('canvas')
-        this.canvas.id = 'game-canvas'
-        document.body.appendChild(this.canvas)
+        this.canvas = document.getElementById('game-canvas') as HTMLCanvasElement
+        if (!this.canvas) {
+            this.canvas = document.createElement('canvas')
+            this.canvas.id = 'game-canvas'
+            document.body.appendChild(this.canvas)
+        }
+
+        this.uiManager = new UIManager()
+
+        // Bind UI Events
+        this.uiManager.onStart = () => this.start()
+        this.uiManager.onRestart = () => this.restart()
 
         // Renderer setup
         this.renderer = new THREE.WebGLRenderer({
@@ -38,7 +49,7 @@ export class Game {
 
         // Scene setup
         this.scene = new THREE.Scene()
-        this.scene.background = new THREE.Color('#333')
+        this.scene.background = new THREE.Color('#111') // Darker background
 
         // Camera setup
         this.camera = new THREE.PerspectiveCamera(
@@ -51,16 +62,39 @@ export class Game {
         this.camera.lookAt(0, 0, 0)
 
         // Basic Lighting
+        this.initLights()
+
+        // Initialize Entities
+        this.initLevel()
+
+        this.inputManager = new InputManager()
+        this.clock = new THREE.Clock()
+
+        // Resize handler
+        window.addEventListener('resize', this.onWindowResize.bind(this))
+    }
+
+    private initLights() {
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.5)
         this.scene.add(ambientLight)
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 1)
         dirLight.position.set(10, 20, 10)
         this.scene.add(dirLight)
+    }
+
+    private initLevel() {
+        // Clear existing children except lights? 
+        // Simplest: clear all, re-add lights.
+        this.scene.clear()
+        this.initLights()
 
         // Maze Setup
         this.maze = new Maze(20, 20)
         this.scene.add(this.maze.getGroup())
+
+        this.closets = []
+        this.enemies = []
 
         // Closets & Enemies
         const emptySpots = this.maze.getEmptySpots()
@@ -83,7 +117,7 @@ export class Game {
             this.scene.add(enemy.getMesh())
         }
 
-        // Floor (Adjusted for Maze)
+        // Floor
         const floorGeo = new THREE.PlaneGeometry(30, 30)
         const floorMat = new THREE.MeshStandardMaterial({ color: 0x444444 })
         const floor = new THREE.Mesh(floorGeo, floorMat)
@@ -91,15 +125,9 @@ export class Game {
         floor.position.y = 0
         this.scene.add(floor)
 
-        // Player (Center)
+        // Player
         this.player = new Player()
         this.scene.add(this.player.getMesh())
-
-        this.inputManager = new InputManager()
-        this.clock = new THREE.Clock()
-
-        // Resize handler
-        window.addEventListener('resize', this.onWindowResize.bind(this))
     }
 
     public start() {
@@ -107,6 +135,18 @@ export class Game {
         this.isRunning = true
         this.clock.start()
         this.loop()
+    }
+
+    public restart() {
+        this.initLevel()
+        this.clock.stop()
+        this.clock.start()
+        this.isRunning = true
+        this.loop()
+    }
+
+    public stop() {
+        this.isRunning = false
     }
 
     private loop() {
@@ -122,57 +162,75 @@ export class Game {
         // 1. Calculate desired movement
         const moveDelta = this.player.update(dt, this.inputManager)
 
+        // Helper for collision checking against maze OR closets
+        const checkAnyCollision = (box: THREE.Box3) => {
+            if (this.maze.checkCollision(box)) return true
+            for (const closet of this.closets) {
+                if (closet.checkWallCollision(box)) return true
+            }
+            return false
+        }
+
         // 2. Try moving along X
         if (moveDelta.x !== 0) {
             this.player.getMesh().position.x += moveDelta.x
-            if (this.maze.checkCollision(this.player.getBoundingBox())) {
-                this.player.getMesh().position.x -= moveDelta.x // Revert
+            if (checkAnyCollision(this.player.getBoundingBox())) {
+                this.player.getMesh().position.x -= moveDelta.x
             }
         }
 
         // 3. Try moving along Z (separately for sliding against walls)
         if (moveDelta.z !== 0) {
             this.player.getMesh().position.z += moveDelta.z
-            if (this.maze.checkCollision(this.player.getBoundingBox())) {
-                this.player.getMesh().position.z -= moveDelta.z // Revert
+            if (checkAnyCollision(this.player.getBoundingBox())) {
+                this.player.getMesh().position.z -= moveDelta.z
             }
         }
 
         // Check Hiding
         this.isHidden = false
-        const playerBox = this.player.getBoundingBox()
         for (const closet of this.closets) {
-            if (closet.checkEntry(playerBox)) {
+            if (closet.checkEntry(this.player.getMesh())) {
                 this.isHidden = true
                 break
             }
         }
 
-        // Debug Hidden Status (Tint player maybe?)
+        // Tint Player
+        const playerMat = this.player.getMesh().material as THREE.MeshStandardMaterial
         if (this.isHidden) {
-            (this.player.getMesh().material as THREE.MeshStandardMaterial).color.setHex(0x0000ff) // Blue when hidden
+            playerMat.color.setHex(0x0000ff)
         } else {
-            (this.player.getMesh().material as THREE.MeshStandardMaterial).color.setHex(0x00ff00) // Green normal
+            playerMat.color.setHex(0x00ff00)
         }
 
         // Update Enemies
+        let isChased = false
         for (const enemy of this.enemies) {
             enemy.update(dt, this.player.getPosition(), this.isHidden, this.maze)
 
-            // Simple Game Over Check
+            // Check if chasing for UI (Assuming state is private, using distance heuristic or future state exposure)
             const dist = enemy.getMesh().position.distanceTo(this.player.getPosition())
+            if (dist < 5 && !this.isHidden) isChased = true // Simple heuristic
+
+            // Game Over Check
             if (dist < 0.75 && !this.isHidden) {
                 console.log("GAME OVER")
-                // Reset player pos loop for now
-                this.player.setPosition(0, 0)
+                this.stop()
+                this.uiManager.showScreen('game-over')
+                return
             }
         }
 
         // Check Win
         if (this.maze.checkWin(this.player.getPosition())) {
             console.log("YOU WIN!")
-            this.player.setPosition(0, 0) // Reset for now
+            this.stop()
+            this.uiManager.showScreen('win')
+            return
         }
+
+        this.uiManager.updateStatus(this.isHidden, isChased)
 
         // Camera Follow
         const playerPos = this.player.getPosition()

@@ -117,10 +117,20 @@ export class Game {
         // Closets & Enemies
         const emptySpots = this.maze.getEmptySpots()
 
+        // Reserved spots: "x,z" strings for Closet locations AND their Entry zones
+        const reservedSpots = new Set<string>()
+
         // Spawn 5 random closets with orientation
         for (let i = 0; i < 5 && i < emptySpots.length; i++) {
             const idx = Math.floor(Math.random() * emptySpots.length)
-            const spot = emptySpots.splice(idx, 1)[0]
+            const spot = emptySpots[idx] // Peek first
+
+            // If spot is strictly reserved (e.g. it's an entry zone for another closet), skip
+            if (reservedSpots.has(`${Math.round(spot.x)},${Math.round(spot.z)}`)) {
+                emptySpots.splice(idx, 1) // Remove invalid spot
+                i-- // Retry
+                continue
+            }
 
             const dirs = [
                 { angle: 0, dx: 0, dz: 1 },    // Front (+Z)
@@ -132,24 +142,60 @@ export class Game {
             // Shuffle directions
             dirs.sort(() => Math.random() - 0.5)
 
-            let rotation = 0
+            let rotation: number | null = null
+            let entryX = 0
+            let entryZ = 0
 
             for (const d of dirs) {
                 // Check if the spot in front of this direction is open
-                // Probe position: spot.x + d.dx, spot.z + d.dz
+                const ex = Math.round(spot.x + d.dx)
+                const ez = Math.round(spot.z + d.dz)
+                const entryKey = `${ex},${ez}`
+
+                // 1. Check Reservation (Don't face another closet's door OR a closet itself)
+                if (reservedSpots.has(entryKey)) continue
+
+                // 2. Check Map Collision (Walls)
                 const probeBox = new THREE.Box3(
                     new THREE.Vector3(spot.x + d.dx - 0.1, 0, spot.z + d.dz - 0.1),
                     new THREE.Vector3(spot.x + d.dx + 0.1, 1, spot.z + d.dz + 0.1)
                 )
                 if (!this.maze.checkCollision(probeBox)) {
-                    rotation = d.angle
-                    break
+                    // 3. Check Closet Collision (Don't block existing closets - though reservedSpots covers this mostly)
+                    let blocked = false
+                    for (const c of this.closets) {
+                        if (c.getBoundingBox().intersectsBox(probeBox)) {
+                            blocked = true
+                            break
+                        }
+                    }
+                    if (!blocked) {
+                        rotation = d.angle
+                        entryX = ex
+                        entryZ = ez
+                        break
+                    }
                 }
             }
 
-            const closet = new Closet(spot.x, spot.z, rotation)
-            this.closets.push(closet)
-            this.scene.add(closet.getMesh())
+            if (rotation !== null) {
+                // Valid spot found
+                emptySpots.splice(idx, 1) // Consume
+
+                const closet = new Closet(spot.x, spot.z, rotation)
+                this.closets.push(closet)
+                this.scene.add(closet.getMesh())
+
+                // Reserve the Closet Spot itself
+                reservedSpots.add(`${Math.round(spot.x)},${Math.round(spot.z)}`)
+
+                // Reserve the Entry Zone (so no other closet can be placed here OR face here)
+                reservedSpots.add(`${entryX},${entryZ}`)
+            } else {
+                // No valid rotation? Skip this spot but don't count as success
+                emptySpots.splice(idx, 1)
+                i--
+            }
         }
 
         // Spawn 2 Enemies

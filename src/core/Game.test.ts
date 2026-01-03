@@ -19,7 +19,6 @@ vi.mock('three', async () => {
 
 // Mock OrbitControls
 const mockUpdate = vi.fn()
-const mockTargetCopy = vi.fn()
 const mockControlsInstance = {
     update: mockUpdate,
     target: new THREE.Vector3(),
@@ -148,6 +147,50 @@ describe('Game Integration', () => {
             ; (game as any).update(dt)
 
         // New z should be less than initial z (closer to target 0,0,0)
+        // New z should be less than initial z (closer to target 0,0,0)
         expect(camera.position.z).toBeLessThan(initialZ)
+    })
+
+    it('should place closets validly (no doorway-to-doorway)', () => {
+        // Run multiple times to catch random placement issues
+        for (let i = 0; i < 5; i++) {
+            game = new Game()
+            const closets: any[] = (game as any).closets
+
+            // Collect entries
+            // Type definition for entry: string key "x,z"
+            const entries = new Set<string>()
+            const positions = new Set<string>()
+
+            for (const c of closets) {
+                positions.add(`${Math.round(c.mesh.position.x)},${Math.round(c.mesh.position.z)}`)
+            }
+
+            for (const c of closets) {
+                const pos = c.mesh.position
+                const rot = c.mesh.rotation.y
+
+                // Calc direction from rotation
+                const dir = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), rot)
+                // Round dir details
+                dir.x = Math.round(dir.x)
+                dir.z = Math.round(dir.z)
+
+                const entryX = Math.round(pos.x + dir.x)
+                const entryZ = Math.round(pos.z + dir.z)
+                const entryKey = `${entryX},${entryZ}`
+
+                // Check 1: Entry should not be another closet's position (Blocking)
+                expect(positions.has(entryKey)).toBe(false)
+
+                // Check 2: Entry should not be another closet's entry (Doorway to Doorway)
+                // Note: It's okay if two closets share an entry spot IF they are at 90 degrees?
+                // Wait, if they share entry spot, they might block each other?
+                // My logic in Game.ts prevents ANY shared entry zone.
+                expect(entries.has(entryKey)).toBe(false)
+
+                entries.add(entryKey)
+            }
+        }
     })
 })

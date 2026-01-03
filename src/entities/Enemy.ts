@@ -4,7 +4,12 @@ import { Maze } from './Maze'
 enum EnemyState {
     WANDER,
     CHASE,
-    SEARCH // Looking around after losing player?
+    SEARCH
+}
+
+enum WanderStrategy {
+    RANDOM,
+    WALL_FOLLOW
 }
 
 export class Enemy {
@@ -15,7 +20,13 @@ export class Enemy {
     private speed: number = 2.0
     private direction: THREE.Vector3 = new THREE.Vector3(1, 0, 0)
     private wanderTimer: number = 0
+
     private viewDistance: number = 5 // Reduced for confined maze feel
+
+    // AI Memory & Strategy
+    private strategy: WanderStrategy = WanderStrategy.RANDOM
+    private strategyTimer: number = 0
+    private previousDirection: THREE.Vector3 = new THREE.Vector3()
 
     // Animation
     private floatOffset: number = 0
@@ -61,6 +72,86 @@ export class Enemy {
         this.floatOffset = Math.random() * 100
     }
 
+    private pickNewDirection(maze: Maze) {
+        // Strategy Switching
+        if (this.strategyTimer <= 0) {
+            // Switch bias: 70% Random, 30% Wall Follow
+            this.strategy = Math.random() < 0.7 ? WanderStrategy.RANDOM : WanderStrategy.WALL_FOLLOW
+            this.strategyTimer = 5 + Math.random() * 5
+        }
+
+        if (this.strategy === WanderStrategy.WALL_FOLLOW) {
+            this.pickWallFollowDirection(maze)
+        } else {
+            this.pickRandomSmartDirection(maze)
+        }
+    }
+
+    private pickWallFollowDirection(maze: Maze) {
+        // Simple Right-Hand Rule Approximation
+        // 1. Try Right (Turn -90)
+        // 2. Try Front (Forward)
+        // 3. Try Left (Turn +90)
+        // 4. Try Back (Turn 180) - Last resort
+
+        const right = this.direction.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2)
+        const front = this.direction.clone()
+        const left = this.direction.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2)
+        const back = this.direction.clone().negate()
+
+        const candidates = [right, front, left, back]
+
+        for (const dir of candidates) {
+            if (this.checkDirection(maze, dir)) {
+                this.setDirection(dir)
+                return
+            }
+        }
+    }
+
+    private pickRandomSmartDirection(maze: Maze) {
+        // Try up to 8 times to find a valid direction
+        for (let i = 0; i < 10; i++) {
+            const angle = Math.random() * Math.PI * 2
+            const dir = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle))
+
+            // Memory Check: Avoid ~180 degree turns (dot product < -0.5)
+            // Unless we are stuck, retry
+            if (this.previousDirection.lengthSq() > 0) {
+                const dot = dir.dot(this.previousDirection)
+                if (dot < -0.5 && i < 8) continue // Retry to avoid U-turn
+            }
+
+            if (this.checkDirection(maze, dir)) {
+                this.setDirection(dir)
+                return
+            }
+        }
+
+        // Fallback
+        const angle = Math.random() * Math.PI * 2
+        this.setDirection(new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle)))
+    }
+
+    private checkDirection(maze: Maze, dir: THREE.Vector3): boolean {
+        const probeDist = 1.0
+        const probePos = this.mesh.position.clone().add(dir.clone().multiplyScalar(probeDist))
+        const probeBox = new THREE.Box3().setFromObject(this.body)
+        const size = new THREE.Vector3()
+        probeBox.getSize(size)
+        probeBox.setFromCenterAndSize(probePos, size)
+        return !maze.checkCollision(probeBox)
+    }
+
+    private setDirection(dir: THREE.Vector3) {
+        this.previousDirection.copy(this.direction)
+        this.direction.copy(dir)
+        this.wanderTimer = 1.5 + Math.random() * 2 // Slightly shorter segments
+
+        const targetLook = this.mesh.position.clone().add(this.direction)
+        this.mesh.lookAt(targetLook.x, this.mesh.position.y, targetLook.z)
+    }
+
     public getMesh() {
         return this.mesh
     }
@@ -80,6 +171,9 @@ export class Enemy {
 
         if (canSee) {
             this.state = EnemyState.CHASE
+            // Reset strategy timers on chase
+            this.strategyTimer = 0
+
             // Simple Chase: Move towards player
             this.direction.subVectors(playerPos, this.mesh.position).normalize()
 
@@ -89,15 +183,9 @@ export class Enemy {
             this.state = EnemyState.WANDER
             if (this.state === EnemyState.WANDER) {
                 this.wanderTimer -= dt
+                this.strategyTimer -= dt
                 if (this.wanderTimer <= 0) {
-                    // Pick random direction
-                    const angle = Math.random() * Math.PI * 2
-                    this.direction.set(Math.cos(angle), 0, Math.sin(angle))
-                    this.wanderTimer = 2 + Math.random() * 2
-
-                    // Face direction
-                    const targetLook = this.mesh.position.clone().add(this.direction)
-                    this.mesh.lookAt(targetLook.x, this.mesh.position.y, targetLook.z)
+                    this.pickNewDirection(maze)
                 }
             }
         }
@@ -113,6 +201,7 @@ export class Enemy {
         this.mesh.updateMatrixWorld()
         if (maze.checkCollision(new THREE.Box3().setFromObject(this.body))) { // Collide body only
             this.mesh.position.x = oldPos.x
+            this.pickNewDirection(maze) // Immediately pick new open direction
         }
 
         // Move Z
@@ -120,6 +209,7 @@ export class Enemy {
         this.mesh.updateMatrixWorld()
         if (maze.checkCollision(new THREE.Box3().setFromObject(this.body))) {
             this.mesh.position.z = oldPos.z
+            this.pickNewDirection(maze) // Immediately pick new open direction
         }
     }
 }

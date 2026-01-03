@@ -48,4 +48,91 @@ describe('Enemy', () => {
         enemy.update(dt, playerPos, true, maze)
         expect(true).toBe(true)
     })
+
+    it('should immediately pick new valid direction on collision', () => {
+        // 1. Initial Update to set up wander timer and direction
+        enemy.update(0.1, new THREE.Vector3(100, 0, 100), true, maze)
+
+        const initialDir = (enemy as any).direction.clone()
+
+        // 2. Mock Collision behavior
+        // logic: checkCollision returns true first (hit wall), then true (probe 1), then false (probe 2)
+        let callCount = 0
+        maze.checkCollision = () => {
+            callCount++
+            if (callCount <= 2) return true // Hit wall + 1st probe
+            return false // 2nd probe open
+        }
+
+        // 3. Update again (should hit wall)
+        enemy.update(0.1, new THREE.Vector3(100, 0, 100), true, maze)
+
+        // 4. Verify results
+        // Should have called checkCollision multiple times
+        expect(callCount).toBeGreaterThan(1)
+
+        // Direction should calculate new direction
+        const newDir = (enemy as any).direction
+        expect(newDir.equals(initialDir)).toBe(false)
+
+        // Timer should serve new duration
+        expect((enemy as any).wanderTimer).toBeGreaterThan(1.0)
+    })
+
+    it('should avoid 180 degree turns (memory)', () => {
+        // Mock checkCollision to always return false (open space)
+        maze.checkCollision = () => false
+
+        // Set initial direction
+        const initialDir = new THREE.Vector3(1, 0, 0)
+            ; (enemy as any).direction.copy(initialDir)
+            ; (enemy as any).previousDirection.copy(initialDir) // Pretend we just moved this way
+
+            // Force random strategy
+            ; (enemy as any).strategy = 0 // WanderStrategy.RANDOM
+            ; (enemy as any).strategyTimer = 10
+
+            // Force new direction pick
+            ; (enemy as any).pickNewDirection(maze)
+
+        const newDir = (enemy as any).direction
+
+        // Check dot product. Should not be close to -1
+        const dot = newDir.dot(initialDir)
+        expect(dot).toBeGreaterThan(-0.9) // Not a direct U-turn
+    })
+
+    it('should try wall follow strategy', () => {
+        // Force Wall Follow Strategy
+        ; (enemy as any).strategy = 1 // WanderStrategy.WALL_FOLLOW
+            ; (enemy as any).strategyTimer = 10
+
+        // Set direction North (0,0,-1)
+        const north = new THREE.Vector3(0, 0, -1)
+            ; (enemy as any).direction.copy(north)
+
+        // Mock collision: 
+        // Right (East) is blocked
+        // Front (North) is blocked
+        maze.checkCollision = () => {
+            // We return false to simulate open space
+            return false
+        }
+
+        // We verify behavior by result direction
+
+
+        // Actually, let's just inspect state change
+        // If we are open on all sides, Wall follow should pick Right (preference) or Front
+        // Right of North is East (1,0,0)
+
+        maze.checkCollision = () => false // Open everywhere
+
+            ; (enemy as any).pickNewDirection(maze)
+
+        const newDir = (enemy as any).direction
+        // Should have turned Right (East) because it's open and first choice in our logic
+        expect(newDir.x).toBeCloseTo(1)
+        expect(newDir.z).toBeCloseTo(0)
+    })
 })

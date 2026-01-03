@@ -13,7 +13,9 @@ export class Closet {
         // Create a closet visual (Three walls)
         // The "Front" is +Z relative to the closet
         const material = new THREE.MeshStandardMaterial({ color: 0x8B4513 }) // Brown for wood
-        const backGeo = new THREE.BoxGeometry(0.8, 2, 0.1)
+
+        // Widen the closet to make entry easier (Prop 1.0 wide)
+        const backGeo = new THREE.BoxGeometry(1.0, 2, 0.1)
         const sideGeo = new THREE.BoxGeometry(0.1, 2, 0.8)
 
         // Back Wall (at -Z)
@@ -22,27 +24,27 @@ export class Closet {
         this.mesh.add(back)
         this.wallMeshes.push(back)
 
-        // Left Wall (-X)
+        // Left Wall (-X) moved out to -0.45 (Gap 0.9)
         const left = new THREE.Mesh(sideGeo, material)
-        left.position.x = -0.35
+        left.position.x = -0.45
         this.mesh.add(left)
         this.wallMeshes.push(left)
 
-        // Right Wall (+X)
+        // Right Wall (+X) moved out to 0.45
         const right = new THREE.Mesh(sideGeo, material)
-        right.position.x = 0.35
+        right.position.x = 0.45
         this.mesh.add(right)
         this.wallMeshes.push(right)
 
         // Top Frame (Visual Door Indicator)
-        const frameGeo = new THREE.BoxGeometry(0.8, 0.1, 0.1)
+        const frameGeo = new THREE.BoxGeometry(1.0, 0.1, 0.1)
         const frameMat = new THREE.MeshStandardMaterial({ color: 0xA0522D }) // Lighter
         const frame = new THREE.Mesh(frameGeo, frameMat)
         frame.position.set(0, 0.95, 0.35) // Top of door
         this.mesh.add(frame)
 
         // Floor Marker
-        const matGeo = new THREE.PlaneGeometry(0.6, 0.2)
+        const matGeo = new THREE.PlaneGeometry(0.8, 0.2)
         const matMat = new THREE.MeshStandardMaterial({ color: 0x553311 })
         const floorMat = new THREE.Mesh(matGeo, matMat)
         floorMat.rotation.x = -Math.PI / 2
@@ -60,20 +62,17 @@ export class Closet {
     }
 
     public checkEntry(player: THREE.Object3D): boolean {
-        const playerBox = new THREE.Box3().setFromObject(player)
-        if (!this.bounds.intersectsBox(playerBox)) {
-            return false
-        }
-
-        // Check strict entry: Player must be entering from the front (Local +Z)
-        // Convert player position to local space of the closet
+        // Simple distance check from center (Local 0,0)
         const localPlayerPos = this.mesh.worldToLocal(player.position.clone())
 
-        // Relaxed logic:
-        const isInsideX = Math.abs(localPlayerPos.x) < 0.4
-        const isInsideZ = localPlayerPos.z < 0.4 && localPlayerPos.z > -0.4
+        // Distance check from center of closet
+        // If walls block other sides, being close to center means we are inside or at door.
+        // Ignore Y difference
+        const distSq = localPlayerPos.x * localPlayerPos.x + localPlayerPos.z * localPlayerPos.z
 
-        return isInsideX && isInsideZ
+        // Threshold Radius 0.6 (sq = 0.36)
+        // Must be in front of back wall (z > -0.3) to avoid triggering from behind
+        return distSq < 0.36 && localPlayerPos.z > -0.3
     }
 
     public checkWallCollision(playerBox: THREE.Box3): boolean {
@@ -82,7 +81,6 @@ export class Closet {
 
         for (const wall of this.wallMeshes) {
             // Need world bbox of wall
-            // Assumes updateMatrixWorld is handled by Game loop scene update
             const wallBox = new THREE.Box3().setFromObject(wall)
             if (wallBox.intersectsBox(playerBox)) {
                 return true

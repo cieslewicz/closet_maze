@@ -99,11 +99,54 @@ export class Game {
         // Closets & Enemies
         const emptySpots = this.maze.getEmptySpots()
 
-        // Spawn 5 random closets
+        // Spawn 5 random closets with orientation
         for (let i = 0; i < 5 && i < emptySpots.length; i++) {
             const idx = Math.floor(Math.random() * emptySpots.length)
             const spot = emptySpots.splice(idx, 1)[0]
-            const closet = new Closet(spot.x, spot.z)
+
+            // Check neighbors to determine rotation
+            // We want the front (+Z local) to face an empty spot (0)
+            // Grid coordinates:
+
+
+            // Map access: this.maze['map'][gz][gx]
+            // Access map via public method or just guess?
+            // Maze.map is private.
+            // But we know getting empty spots ensured current spot is 0.
+            // We need to check neighbors (Top, Right, Bottom, Left).
+            // Helper to check if neighbor is wall (1) or free (0/2/3)
+            // Actually we can inspect World Collision, but map data is better.
+            // Let's add `isWall(x, z)` to Maze?
+            // Or just check collisions using probes?
+            // Probes are safer as they respect the actual collision logic.
+
+            const dirs = [
+                { angle: 0, dx: 0, dz: 1 },    // Front (+Z)
+                { angle: Math.PI / 2, dx: 1, dz: 0 }, // Right (+X)
+                { angle: Math.PI, dx: 0, dz: -1 }, // Back (-Z)
+                { angle: -Math.PI / 2, dx: -1, dz: 0 } // Left (-X)
+            ]
+
+            // Shuffle directions to randomize valid choice
+            dirs.sort(() => Math.random() - 0.5)
+
+            let rotation = 0
+
+            for (const d of dirs) {
+                // Check if the spot in front of this direction is open
+                // Probe position: spot.x + d.dx, spot.z + d.dz
+                const probeBox = new THREE.Box3(
+                    new THREE.Vector3(spot.x + d.dx - 0.1, 0, spot.z + d.dz - 0.1),
+                    new THREE.Vector3(spot.x + d.dx + 0.1, 1, spot.z + d.dz + 0.1)
+                )
+                if (!this.maze.checkCollision(probeBox)) {
+                    // It's open!
+                    rotation = d.angle
+                    break
+                }
+            }
+
+            const closet = new Closet(spot.x, spot.z, rotation)
             this.closets.push(closet)
             this.scene.add(closet.getMesh())
         }

@@ -5,9 +5,10 @@ export class Closet {
     private bounds: THREE.Box3
     private wallMeshes: THREE.Mesh[] = []
 
-    constructor(x: number, z: number) {
+    constructor(x: number, z: number, rotation: number = 0) {
         this.mesh = new THREE.Group()
         this.mesh.position.set(x, 1, z)
+        this.mesh.rotation.y = rotation
 
         // Create a closet visual (Three walls)
         // The "Front" is +Z relative to the closet
@@ -33,13 +34,20 @@ export class Closet {
         this.mesh.add(right)
         this.wallMeshes.push(right)
 
-        // Add a "Doorway" frame or something visually indicating entrance
+        // Top Frame (Visual Door Indicator)
         const frameGeo = new THREE.BoxGeometry(0.8, 0.1, 0.1)
-        const frame = new THREE.Mesh(frameGeo, material)
+        const frameMat = new THREE.MeshStandardMaterial({ color: 0xA0522D }) // Lighter
+        const frame = new THREE.Mesh(frameGeo, frameMat)
         frame.position.set(0, 0.95, 0.35) // Top of door
         this.mesh.add(frame)
-        // We don't add frame to wallMeshes to allow walking under/through if tall enough,
-        // although player head check isn't implemented. Frame Collision usually not needed for gameplay.
+
+        // Floor Marker
+        const matGeo = new THREE.PlaneGeometry(0.6, 0.2)
+        const matMat = new THREE.MeshStandardMaterial({ color: 0x553311 })
+        const floorMat = new THREE.Mesh(matGeo, matMat)
+        floorMat.rotation.x = -Math.PI / 2
+        floorMat.position.set(0, -0.99, 0.4) // Slightly in front
+        this.mesh.add(floorMat)
 
         this.bounds = new THREE.Box3().setFromObject(this.mesh)
 
@@ -61,10 +69,9 @@ export class Closet {
         // Convert player position to local space of the closet
         const localPlayerPos = this.mesh.worldToLocal(player.position.clone())
 
-        // Simplest logic for "Weird that you can enter from any direction":
-        // Only return TRUE if the player is inside the "sweet spot"
-        const isInsideX = Math.abs(localPlayerPos.x) < 0.3
-        const isInsideZ = Math.abs(localPlayerPos.z) < 0.3
+        // Relaxed logic:
+        const isInsideX = Math.abs(localPlayerPos.x) < 0.4
+        const isInsideZ = localPlayerPos.z < 0.4 && localPlayerPos.z > -0.4
 
         return isInsideX && isInsideZ
     }

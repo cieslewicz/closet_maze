@@ -1,20 +1,20 @@
-export type GameScreen = 'menu' | 'hud' | 'game-over' | 'win'
+export type GameScreen = 'menu' | 'hud' | 'game-over' | 'win' | 'help'
 
 export class UIManager {
     private screens: { [key: string]: HTMLElement } = {}
-    // private currentScreen: GameScreen = 'menu' // Unused
-
 
     // Callbacks
     public onStart?: () => void
     public onRestart?: () => void
+    public onResume?: () => void
 
     constructor() {
         this.screens = {
             'menu': document.getElementById('main-menu')!,
             'hud': document.getElementById('hud')!,
             'game-over': document.getElementById('game-over')!,
-            'win': document.getElementById('win-screen')!
+            'win': document.getElementById('win-screen')!,
+            'help': document.getElementById('help-screen')!
         }
 
         this.bindEvents()
@@ -34,6 +34,11 @@ export class UIManager {
 
         document.getElementById('btn-play-again')?.addEventListener('click', () => {
             this.onRestart?.()
+            this.showScreen('hud')
+        })
+
+        document.getElementById('btn-resume')?.addEventListener('click', () => {
+            this.onResume?.()
             this.showScreen('hud')
         })
     }

@@ -53,6 +53,9 @@ describe('Game Integration', () => {
                 <div id="hud">
                     <div id="status-indicator"></div>
                 </div>
+                <div id="help-screen">
+                    <button id="btn-resume">Resume</button>
+                </div>
                 <div id="game-over"><button id="btn-retry">Retry</button></div>
                 <div id="win-screen"><button id="btn-play-again">Again</button></div>
             </div>

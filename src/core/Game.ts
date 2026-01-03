@@ -19,6 +19,7 @@ export class Game {
     // Time management
     private clock: THREE.Clock
     private isRunning: boolean = false
+    private isPaused: boolean = false
 
     // Entities
     private player!: Player
@@ -40,6 +41,14 @@ export class Game {
         // Bind UI Events
         this.uiManager.onStart = () => this.start()
         this.uiManager.onRestart = () => this.restart()
+        this.uiManager.onResume = () => this.resume()
+
+        // Global Key handler for Help
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'h') {
+                this.toggleHelp()
+            }
+        })
 
         // Renderer setup
         this.renderer = new THREE.WebGLRenderer({
@@ -94,8 +103,6 @@ export class Game {
     }
 
     private initLevel() {
-        // Clear existing children except lights? 
-        // Simplest: clear all, re-add lights.
         this.scene.clear()
         this.initLights()
 
@@ -114,22 +121,6 @@ export class Game {
             const idx = Math.floor(Math.random() * emptySpots.length)
             const spot = emptySpots.splice(idx, 1)[0]
 
-            // Check neighbors to determine rotation
-            // We want the front (+Z local) to face an empty spot (0)
-            // Grid coordinates:
-
-
-            // Map access: this.maze['map'][gz][gx]
-            // Access map via public method or just guess?
-            // Maze.map is private.
-            // But we know getting empty spots ensured current spot is 0.
-            // We need to check neighbors (Top, Right, Bottom, Left).
-            // Helper to check if neighbor is wall (1) or free (0/2/3)
-            // Actually we can inspect World Collision, but map data is better.
-            // Let's add `isWall(x, z)` to Maze?
-            // Or just check collisions using probes?
-            // Probes are safer as they respect the actual collision logic.
-
             const dirs = [
                 { angle: 0, dx: 0, dz: 1 },    // Front (+Z)
                 { angle: Math.PI / 2, dx: 1, dz: 0 }, // Right (+X)
@@ -137,7 +128,7 @@ export class Game {
                 { angle: -Math.PI / 2, dx: -1, dz: 0 } // Left (-X)
             ]
 
-            // Shuffle directions to randomize valid choice
+            // Shuffle directions
             dirs.sort(() => Math.random() - 0.5)
 
             let rotation = 0
@@ -150,7 +141,6 @@ export class Game {
                     new THREE.Vector3(spot.x + d.dx + 0.1, 1, spot.z + d.dz + 0.1)
                 )
                 if (!this.maze.checkCollision(probeBox)) {
-                    // It's open!
                     rotation = d.angle
                     break
                 }
@@ -186,6 +176,7 @@ export class Game {
     public start() {
         if (this.isRunning) return
         this.isRunning = true
+        this.isPaused = false
         this.clock.start()
         this.loop()
     }
@@ -195,11 +186,37 @@ export class Game {
         this.clock.stop()
         this.clock.start()
         this.isRunning = true
+        this.isPaused = false
         this.loop()
     }
 
     public stop() {
         this.isRunning = false
+    }
+
+    public toggleHelp() {
+        if (!this.isRunning && !this.isPaused) return
+
+        if (this.isPaused) {
+            this.resume()
+        } else {
+            this.pause()
+        }
+    }
+
+    public pause() {
+        this.isPaused = true
+        this.isRunning = false
+        this.clock.stop()
+        this.uiManager.showScreen('help')
+    }
+
+    public resume() {
+        this.isPaused = false
+        this.isRunning = true
+        this.clock.start()
+        this.uiManager.showScreen('hud')
+        this.loop()
     }
 
     private loop() {
@@ -232,7 +249,7 @@ export class Game {
             }
         }
 
-        // 3. Try moving along Z (separately for sliding against walls)
+        // 3. Try moving along Z
         if (moveDelta.z !== 0) {
             this.player.getMesh().position.z += moveDelta.z
             if (checkAnyCollision(this.player.getBoundingBox())) {
@@ -254,17 +271,6 @@ export class Game {
         playerGroup.traverse((child) => {
             if (child instanceof THREE.Mesh) {
                 const mat = child.material as THREE.MeshStandardMaterial
-                // Only tint body parts that are not eyes? 
-                // Or just tint everything? Tinting eyes blue might look funny but acceptable.
-                // Let's preserve original color if we can, but storing it is complex.
-                // Simple hack: If hidden, override emissive? Or color.
-
-                // Better: 
-                // If hidden, set material to blue-ish.
-                // If not hidden, restore original color? 
-                // We don't have original color stored easily.
-
-                // Let's just set emissive for "Hidden" state to Blue, and Black otherwise.
                 if (this.isHidden) {
                     mat.emissive.setHex(0x0000ff)
                     mat.emissiveIntensity = 0.5
@@ -280,9 +286,8 @@ export class Game {
         for (const enemy of this.enemies) {
             enemy.update(dt, this.player.getPosition(), this.isHidden, this.maze)
 
-            // Check if chasing for UI (Assuming state is private, using distance heuristic or future state exposure)
             const dist = enemy.getMesh().position.distanceTo(this.player.getPosition())
-            if (dist < 5 && !this.isHidden) isChased = true // Simple heuristic
+            if (dist < 5 && !this.isHidden) isChased = true
 
             // Game Over Check
             if (dist < 0.75 && !this.isHidden) {
@@ -305,13 +310,8 @@ export class Game {
 
         // Camera Follow (Controls Logic)
         const playerPos = this.player.getPosition()
-
-        // Update the OrbitControls target to the player's position
-        // This makes the camera orbit AROUND the player
         this.controls.target.copy(playerPos)
         this.controls.update()
-
-        // Note: manual camera positioning is removed because OrbitControls handles it relative to target.
     }
 
     private render() {

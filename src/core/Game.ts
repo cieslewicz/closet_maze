@@ -80,7 +80,7 @@ export class Game {
             0.1,
             1000
         )
-        this.camera.position.set(0, 10, 10)
+        this.camera.position.set(0, 7.5, 7.5)
 
         // Controls setup
         this.controls = new OrbitControls(this.camera, this.renderer.domElement)

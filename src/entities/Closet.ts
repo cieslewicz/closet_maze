@@ -92,4 +92,21 @@ export class Closet {
     public getBoundingBox() {
         return this.bounds
     }
+
+    public getEntryZone(): THREE.Box3 {
+        // Return a box slightly in FRONT of the closet
+        const box = new THREE.Box3()
+        const center = new THREE.Vector3()
+        this.mesh.getWorldPosition(center)
+
+        // Adjust based on rotation
+        // Front is +Z in local space
+        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.mesh.quaternion)
+
+        // Position: center + forward * (depth/2 + something)
+        const entryPos = center.clone().add(forward.multiplyScalar(0.6))
+
+        box.setFromCenterAndSize(entryPos, new THREE.Vector3(0.8, 2, 0.4))
+        return box
+    }
 }

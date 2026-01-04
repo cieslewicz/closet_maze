@@ -6,6 +6,7 @@ import { Player } from '../entities/Player'
 import { Closet } from '../entities/Closet'
 import { Enemy } from '../entities/Enemy'
 import { UIManager } from './UIManager'
+import { SoundManager } from './SoundManager'
 
 export class Game {
     private canvas: HTMLCanvasElement
@@ -15,6 +16,7 @@ export class Game {
     private controls: OrbitControls
     private inputManager: InputManager
     private uiManager: UIManager
+    private soundManager: SoundManager
 
     // Time management
     private clock: THREE.Clock
@@ -37,6 +39,7 @@ export class Game {
         }
 
         this.uiManager = new UIManager()
+        this.soundManager = new SoundManager()
 
         // Bind UI Events
         this.uiManager.onStart = () => this.start()
@@ -250,7 +253,7 @@ export class Game {
 
     private currentDifficulty: string = 'medium'
 
-    public start() {
+    public async start() {
         if (this.isRunning) return
 
         // Read difficulty from UI
@@ -259,9 +262,10 @@ export class Game {
             this.currentDifficulty = diffSelect.value
         }
 
-        // Re-init level with selected difficulty
-        this.initLevel(this.currentDifficulty)
+        await this.soundManager.init()
+        this.soundManager.startMusic('calm')
 
+        this.initLevel(this.currentDifficulty)
         this.isRunning = true
         this.isPaused = false
         this.clock.start()
@@ -269,11 +273,12 @@ export class Game {
     }
 
     public restart() {
+        // Reuse current difficulty
+        this.soundManager.startMusic('calm')
         this.initLevel(this.currentDifficulty)
-        this.clock.stop()
-        this.clock.start()
         this.isRunning = true
         this.isPaused = false
+        this.clock.start()
         this.loop()
     }
 
@@ -289,6 +294,24 @@ export class Game {
         } else {
             this.pause()
         }
+    }
+
+    private checkWin(pos: THREE.Vector3) {
+        if (this.maze.checkWin(pos)) {
+            this.isRunning = false
+            this.clock.stop()
+            this.soundManager.stopMusic()
+            this.soundManager.playSFX('win')
+            this.uiManager.showScreen('win')
+        }
+    }
+
+    private gameOver() {
+        this.isRunning = false
+        this.clock.stop()
+        this.soundManager.stopMusic()
+        this.soundManager.playSFX('lose')
+        this.uiManager.showScreen('game-over')
     }
 
     public pause() {
@@ -339,21 +362,32 @@ export class Game {
 
         // Stop Clock
         this.clock.stop()
+
+        // Stop Music
+        this.soundManager.stopMusic()
     }
 
     private loop() {
+        if (this.isPaused) {
+            requestAnimationFrame(this.loop.bind(this))
+            this.controls.update()
+            this.renderer.render(this.scene, this.camera)
+            return
+        }
+
         if (!this.isRunning) return
-
-        requestAnimationFrame(() => this.loop())
-
-        if (this.isPaused) return
 
         const dt = this.clock.getDelta()
         this.update(dt)
+
         this.renderer.render(this.scene, this.camera)
+        requestAnimationFrame(this.loop.bind(this))
     }
 
-    private update(dt: number) {
+    public update(dt: number) {
+        // Controls
+        this.controls.update()
+
         // 1. Calculate desired movement (Camera Relative)
         const axis = this.inputManager.getAxis() // x: -1/1 (Left/Right), y: -1/1 (Down/Up)
 
@@ -402,14 +436,27 @@ export class Game {
             }
         }
 
-        // Check Hiding
-        this.isHidden = false
+        // Check if Hidden (Closet overlap)
+        let nowHidden = false
+        const playerBox = this.player.getBoundingBox()
         for (const closet of this.closets) {
-            if (closet.checkEntry(this.player.getMesh())) {
-                this.isHidden = true
+            if (closet.getEntryZone().intersectsBox(playerBox)) {
+                // In entry zone -> Open door? (Visuals later)
+            }
+            if (closet.getBoundingBox().intersectsBox(playerBox)) {
+                nowHidden = true
                 break
             }
         }
+
+        // Closet SFX
+        if (nowHidden && !this.isHidden) {
+            this.soundManager.playSFX('closet_open')
+        } else if (!nowHidden && this.isHidden) {
+            this.soundManager.playSFX('closet_close')
+        }
+
+        this.isHidden = nowHidden
 
         // Tint Player
         const playerGroup = this.player.getMesh()
@@ -426,32 +473,26 @@ export class Game {
             }
         })
 
-        // Update Enemies
-        let isChased = false
+        // Enemy BGM Logic
+        let anyChasing = false
         for (const enemy of this.enemies) {
             enemy.update(dt, this.player.getPosition(), this.isHidden, this.maze, this.closets)
+            if (enemy.isChasing()) anyChasing = true
 
+            // Player Collision Check (Game Over)
+            // Use tighter hitbox for player (center point distance) to avoid cheap deaths
             const dist = enemy.getMesh().position.distanceTo(this.player.getPosition())
-            if (dist < 5 && !this.isHidden) isChased = true
-
-            // Game Over Check
-            if (dist < 0.75 && !this.isHidden) {
-                console.log("GAME OVER")
-                this.stop()
-                this.uiManager.showScreen('game-over')
+            if (dist < 0.6) {
+                this.gameOver()
                 return
             }
         }
 
         // Check Win
-        if (this.maze.checkWin(this.player.getPosition())) {
-            console.log("YOU WIN!")
-            this.stop()
-            this.uiManager.showScreen('win')
-            return
-        }
+        this.checkWin(this.player.getPosition())
 
-        this.uiManager.updateStatus(this.isHidden, isChased)
+        this.soundManager.startMusic(anyChasing ? 'chase' : 'calm')
+        this.uiManager.updateStatus(this.isHidden, anyChasing)
 
         // Camera Follow & Controls Logic
         const playerPos = this.player.getPosition()

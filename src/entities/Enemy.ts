@@ -31,6 +31,7 @@ export class Enemy {
 
     // Animation
     private floatOffset: number = 0
+    private visualTimer: number = 0
 
     constructor(x: number, z: number) {
         this.mesh = new THREE.Group()
@@ -40,6 +41,8 @@ export class Enemy {
         const geo = new THREE.ConeGeometry(0.3, 1, 16)
         const mat = new THREE.MeshStandardMaterial({
             color: 0xaa0000,
+            emissive: 0x000000,
+            emissiveIntensity: 0,
             transparent: true,
             opacity: 0.9,
             roughness: 0.2
@@ -178,10 +181,26 @@ export class Enemy {
         return this.mesh
     }
 
+    public isChasing(): boolean {
+        return this.state === EnemyState.CHASE
+    }
+
     public update(dt: number, playerPos: THREE.Vector3, isPlayerHidden: boolean, maze: Maze, closets: Closet[]) {
-        // 1. Animation (Float)
-        this.floatOffset += dt * 3
+        // Animation: Float
+        this.floatOffset += dt * 2
         this.body.position.y = 0.2 + Math.sin(this.floatOffset) * 0.1
+
+        // Animation: Pulse Emissive if Chasing
+        if (this.state === EnemyState.CHASE) {
+            this.visualTimer += dt * 10 // Fast pulse
+            const intensity = (Math.sin(this.visualTimer) + 1) * 0.5 + 0.2 // Range 0.2 to 1.2
+                ; (this.body.material as THREE.MeshStandardMaterial).emissive.setHex(0xff0000)
+                ; (this.body.material as THREE.MeshStandardMaterial).emissiveIntensity = intensity
+        } else {
+            // Calm
+            ; (this.body.material as THREE.MeshStandardMaterial).emissive.setHex(0x000000)
+                ; (this.body.material as THREE.MeshStandardMaterial).emissiveIntensity = 0
+        }
 
         // 2. Logic
         const dist = this.mesh.position.distanceTo(playerPos)

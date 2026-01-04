@@ -52,6 +52,10 @@ Implements a Finite State Machine (FSM) for AI behavior.
 *   **Senses**:
     *   **Vision**: `checkVisibility()` uses a **Multi-Ray** cast (Center, Left, Right) to detect the player, preventing line-of-sight leaks through wall cracks.
     *   **Distance**: Configurable view distance (default 10).
+    *   **Corner Handling**:
+        *   **Wall Sliding**: Slides along walls during chase instead of stopping.
+        *   **Stuck Detection**: Detects if trapped in a corner (blocked on both axes); temporarily switches to `WANDER` to escape.
+*   **Visuals**: Pulses red when in `CHASE` state.
 *   **Visuals**: Pulses red when in `CHASE` state.
 
 ### Closet (`src/entities/Closet.ts`)

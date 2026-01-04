@@ -131,7 +131,8 @@ export class Game {
         // Closets & Enemies
         const emptySpots = this.maze.getEmptySpots()
 
-        // Reserved spots: "x,z" strings for Closet locations AND their Entry zones
+        // Reserved spots: "x,z" strings for Closet locations AND their Entry zones.
+        // This ensures closets don't block each other or create dead ends at their own entrances.
         const reservedSpots = new Set<string>()
 
         // Spawn 5 random closets with orientation
@@ -213,6 +214,7 @@ export class Game {
         }
 
         // Filter spots for Enemies (Min distance from Player at 0,0)
+        // prevents spawn camping
         const playerStart = new THREE.Vector3(0, 0, 0)
         const minSpawnDist = 8.0
 

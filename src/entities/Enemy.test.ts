@@ -322,4 +322,38 @@ describe('Enemy', () => {
         expect(checkedTypes).toContain(1)
         expect(checkedTypes).toContain(3)
     })
+    it('should slide along wall when chasing', () => {
+        // Setup: Enemy at 0,0
+        // Player at 2, 0, 2
+        // Wall blocks movement to +X (at X=0.1)
+        // Movement vector will be +X, +Z.
+        // X hit -> Revert. Z should proceed.
+
+        maze.checkCollision = (box: THREE.Box3) => {
+            const center = new THREE.Vector3()
+            box.getCenter(center)
+            // Block if X > 0.1
+            if (center.x > 0.1) return true
+            return false
+        }
+
+        const playerPos = new THREE.Vector3(2, 0, 2)
+            // Ensure starting state is CHASE (needs to see player)
+            // Mock visibility Check
+            ; (enemy as any).checkVisibility = () => true
+
+        enemy.update(0.1, playerPos, false, maze, [])
+
+        const pos = enemy.getMesh().position
+
+        // X should be reverted/blocked (start was 0, may move slightly before hit? oldPos=0)
+        // Actually logix: x+=vel. if col, x=old(0).
+        expect(pos.x).toBeCloseTo(0, 1)
+
+        // Z should have moved positive
+        expect(pos.z).toBeGreaterThan(0.01)
+
+        // Should still be chasing (not reset to WANDER or picking new random dir)
+        expect((enemy as any).state).toBe(1) // CHASE
+    })
 })

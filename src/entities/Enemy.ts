@@ -245,7 +245,9 @@ export class Enemy {
         this.mesh.updateMatrixWorld()
         if (this.checkAnyCollision(new THREE.Box3().setFromObject(this.body), maze, closets)) { // Collide body only
             this.mesh.position.x = oldPos.x
-            this.pickNewDirection(maze, closets) // Immediately pick new open direction
+            if (this.state !== EnemyState.CHASE) {
+                this.pickNewDirection(maze, closets)
+            }
         }
 
         // Move Z
@@ -253,7 +255,9 @@ export class Enemy {
         this.mesh.updateMatrixWorld()
         if (this.checkAnyCollision(new THREE.Box3().setFromObject(this.body), maze, closets)) {
             this.mesh.position.z = oldPos.z
-            this.pickNewDirection(maze, closets) // Immediately pick new open direction
+            if (this.state !== EnemyState.CHASE) {
+                this.pickNewDirection(maze, closets)
+            }
         }
     }
 

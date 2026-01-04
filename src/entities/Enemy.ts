@@ -27,6 +27,7 @@ export class Enemy {
     // AI Memory & Strategy
     private strategy: WanderStrategy = WanderStrategy.RANDOM
     private strategyTimer: number = 0
+    private forceWanderTimer: number = 0 // To break out of stuck spots
     private previousDirection: THREE.Vector3 = new THREE.Vector3()
 
     // Animation
@@ -207,7 +208,9 @@ export class Enemy {
         let canSee = false
 
         // Check line of sight
-        if (!isPlayerHidden && dist < this.viewDistance) {
+        if (this.forceWanderTimer > 0) {
+            this.forceWanderTimer -= dt
+        } else if (!isPlayerHidden && dist < this.viewDistance) {
             if (this.checkVisibility(maze, closets, playerPos)) {
                 canSee = true
             }
@@ -241,23 +244,35 @@ export class Enemy {
         const oldPos = this.mesh.position.clone()
 
         // Move X
+        let hitX = false
         this.mesh.position.x += velocity.x
         this.mesh.updateMatrixWorld()
         if (this.checkAnyCollision(new THREE.Box3().setFromObject(this.body), maze, closets)) { // Collide body only
             this.mesh.position.x = oldPos.x
+            hitX = true
             if (this.state !== EnemyState.CHASE) {
                 this.pickNewDirection(maze, closets)
             }
         }
 
         // Move Z
+        let hitZ = false
         this.mesh.position.z += velocity.z
         this.mesh.updateMatrixWorld()
         if (this.checkAnyCollision(new THREE.Box3().setFromObject(this.body), maze, closets)) {
             this.mesh.position.z = oldPos.z
+            hitZ = true
             if (this.state !== EnemyState.CHASE) {
                 this.pickNewDirection(maze, closets)
             }
+        }
+
+        // Stuck Check: If chasing and blocked on both axes (or effectively didn't move)
+        if (this.state === EnemyState.CHASE && hitX && hitZ) {
+            // We are stuck in a corner
+            this.forceWanderTimer = 0.5 // Force wander for 0.5s to get unstuck
+            this.pickNewDirection(maze, closets)
+            this.state = EnemyState.WANDER
         }
     }
 

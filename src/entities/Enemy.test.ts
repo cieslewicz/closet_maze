@@ -356,4 +356,29 @@ describe('Enemy', () => {
         // Should still be chasing (not reset to WANDER or picking new random dir)
         expect((enemy as any).state).toBe(1) // CHASE
     })
+
+    it('should break out of corner when stuck (both axes blocked)', () => {
+        // Setup: Enemy at 0,0. Locked in by walls at +X and +Z
+        maze.checkCollision = (box: THREE.Box3) => {
+            const center = new THREE.Vector3()
+            box.getCenter(center)
+            if (center.x > 0.1) return true
+            if (center.z > 0.1) return true
+            return false
+        }
+
+        const playerPos = new THREE.Vector3(2, 0, 2)
+            ; (enemy as any).checkVisibility = () => true
+
+        // Update
+        enemy.update(0.1, playerPos, false, maze, [])
+
+        // Both X and Z collided.
+        // Should trigger stuck logic:
+        // 1. forceWanderTimer set
+        // 2. state -> WANDER
+
+        expect((enemy as any).state).toBe(0) // WANDER
+        expect((enemy as any).forceWanderTimer).toBeGreaterThan(0)
+    })
 })

@@ -360,4 +360,31 @@ describe('Game Integration', () => {
             ; (game as any).update(0.1)
         expect(soundSpy).toHaveBeenCalledWith('calm')
     })
+    it('should reset camera position on restart', async () => {
+        game = new Game()
+        await (game as any).start()
+
+        const camera = (game as any).camera
+        const controls = (game as any).controls
+
+        // 1. Move Camera away manually
+        camera.position.set(100, 100, 100)
+        controls.target.set(50, 0, 50)
+        controls.update()
+
+            // 2. Restart
+            ; (game as any).restart()
+
+        // 3. Verify Reset
+        // Player should be at 0,0,0 (newly spawned)
+        // Camera should be at 0, 7.5, 7.5
+        expect(camera.position.x).toBe(0)
+        expect(camera.position.y).toBe(8.0) // Player Y is 0.5 + 7.5 offset
+        expect(camera.position.z).toBe(7.5)
+
+        // Target should be 0,0,0
+        expect(controls.target.x).toBe(0)
+        expect(controls.target.y).toBe(0.5) // Player Y
+        expect(controls.target.z).toBe(0)
+    })
 })

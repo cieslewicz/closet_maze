@@ -249,6 +249,22 @@ export class Game {
         // Player
         this.player = new Player()
         this.scene.add(this.player.getMesh())
+
+        this.resetCamera()
+    }
+
+    private resetCamera() {
+        if (!this.player) return
+        const pos = this.player.getPosition()
+        // Reset to default "behind/above" view
+        // Match constructor default (0, 7.5, 7.5) relative to player which is at 0,0,0 initially
+        // But if player spawns elsewhere (unlikely), we should offset.
+        // Assuming player starts at 0,0,0 logic in Player.ts?
+
+        // Actually, let's just force a nice default angle
+        this.camera.position.set(pos.x, pos.y + 7.5, pos.z + 7.5)
+        this.controls.target.copy(pos)
+        this.controls.update()
     }
 
     private currentDifficulty: string = 'medium'

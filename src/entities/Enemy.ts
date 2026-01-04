@@ -22,7 +22,7 @@ export class Enemy {
     private direction: THREE.Vector3 = new THREE.Vector3(1, 0, 0)
     private wanderTimer: number = 0
 
-    private viewDistance: number = 5 // Reduced for confined maze feel
+    private viewDistance: number = 10 // Increased for broader threat range
 
     // AI Memory & Strategy
     private strategy: WanderStrategy = WanderStrategy.RANDOM

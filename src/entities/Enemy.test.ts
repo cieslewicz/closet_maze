@@ -43,15 +43,23 @@ describe('Enemy', () => {
         const playerPos = new THREE.Vector3(2, 0, 0)
         const dt = 1.0
 
-        // Force enemy to look away or ensure Wander behavior doesn't accidentally move exactly towards player
-        // But WANDER is random. 
-        // We can inspect internal state if we exposed it, or infer behavior over multiple frames.
-        // Or simpler: Check if it moves DIRECTLY towards player.
-
-        // Actually, let's just assert no error for now, testing random behavior is hard without mocking Math.random
-        // Actually, let's just assert no error for now, testing random behavior is hard without mocking Math.random
         enemy.update(dt, playerPos, true, maze, mockClosets)
-        expect(true).toBe(true)
+        // Should NOT be chasing (internal state check would be better, but we don't expose it public fully)
+        // But we can check if it moved significantly towards player?
+        // Or check if state changed?
+        expect((enemy as any).isChasing()).toBe(false)
+    })
+
+    it('should respect view distance', () => {
+        const dt = 0.1
+        // 1. Far away (11 units > 10)
+        enemy.update(dt, new THREE.Vector3(11, 0, 0), false, maze, mockClosets)
+        expect((enemy as any).isChasing()).toBe(false)
+
+        // 2. Clear prev state
+        // 3. Within range (9 units < 10)
+        enemy.update(dt, new THREE.Vector3(9, 0, 0), false, maze, mockClosets)
+        expect((enemy as any).isChasing()).toBe(true)
     })
 
     it('should immediately pick new valid direction on collision', () => {

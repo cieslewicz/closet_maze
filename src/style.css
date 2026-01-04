@@ -103,3 +103,35 @@ button:hover {
     opacity: 1;
   }
 }
+
+/* Difficulty Dropdown Styling */
+.difficulty-select {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#difficulty {
+  background: #222;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 1rem;
+  margin-left: 10px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+#difficulty:hover {
+  border-color: #888;
+  background: #333;
+}
+
+#difficulty:focus {
+  border-color: #fff;
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+}

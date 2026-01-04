@@ -208,7 +208,7 @@ export class Enemy {
 
         // Check line of sight
         if (!isPlayerHidden && dist < this.viewDistance) {
-            if (this.checkLineOfSight(maze, closets, playerPos)) {
+            if (this.checkVisibility(maze, closets, playerPos)) {
                 canSee = true
             }
         }
@@ -257,11 +257,30 @@ export class Enemy {
         }
     }
 
-    private checkLineOfSight(maze: Maze, closets: Closet[], playerPos: THREE.Vector3): boolean {
+    private checkVisibility(maze: Maze, closets: Closet[], playerPos: THREE.Vector3): boolean {
+        // Cast 3 rays to the player's bounding volume (Center, Left, Right)
+        // to prevent seeing through thin cracks. All 3 must be clear.
+
+        const forward = new THREE.Vector3().subVectors(playerPos, this.mesh.position).normalize()
+        const right = new THREE.Vector3(-forward.z, 0, forward.x).normalize().multiplyScalar(0.3) // 0.3 offset
+
+        const pCenter = playerPos.clone()
+        const pLeft = playerPos.clone().sub(right)
+        const pRight = playerPos.clone().add(right)
+
+        // Check all 3
+        if (!this.checkLineOfSight(maze, closets, pCenter)) return false
+        if (!this.checkLineOfSight(maze, closets, pLeft)) return false
+        if (!this.checkLineOfSight(maze, closets, pRight)) return false
+
+        return true
+    }
+
+    private checkLineOfSight(maze: Maze, closets: Closet[], targetPos: THREE.Vector3): boolean {
         const start = this.mesh.position.clone()
         // Eye level
         start.y = 1
-        const end = playerPos.clone()
+        const end = targetPos.clone()
         end.y = 1
 
         const direction = new THREE.Vector3().subVectors(end, start)
@@ -274,22 +293,24 @@ export class Enemy {
             const box = closet.getBoundingBox()
             const intersection = ray.intersectBox(box, new THREE.Vector3())
             if (intersection) {
-                // If collision is closer than player, blocked
-                if (start.distanceTo(intersection) < distance) {
+                // If collision is closer than player (with margin), blocked
+                // dist to intersection < full distance - 0.1
+                if (start.distanceTo(intersection) < distance - 0.2) {
                     return false
                 }
             }
         }
 
         // 2. Check Maze Walls (Ray Marching)
-        const stepSize = 0.5 // Check every 0.5 units
+        // Reduced step size for higher precision against cracks
+        const stepSize = 0.2
         const steps = Math.floor(distance / stepSize)
 
         for (let i = 1; i < steps; i++) {
             const probe = start.clone().add(direction.clone().multiplyScalar(i * stepSize))
             // Check if this point is in a wall
             const box = new THREE.Box3().setFromCenterAndSize(probe, new THREE.Vector3(0.1, 0.1, 0.1))
-            if (maze.checkCollision(box, [1])) { // Check Wall(1)
+            if (maze.checkCollision(box, [1, 3])) { // Check Wall(1) and Exit(3)
                 return false
             }
         }

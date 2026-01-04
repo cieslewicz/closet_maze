@@ -2,10 +2,7 @@ export class InputManager {
     public keys: { [key: string]: boolean } = {}
     public axis: { x: number; y: number } = { x: 0, y: 0 }
 
-    private useArrowKeys: boolean = true
-
-    constructor(options: { useArrowKeys?: boolean } = {}) {
-        this.useArrowKeys = options.useArrowKeys ?? true
+    constructor() {
         this.addListeners()
     }
 
@@ -34,10 +31,10 @@ export class InputManager {
         this.axis.x = 0
         this.axis.y = 0
 
-        const up = this.keys['KeyW'] || (this.useArrowKeys && this.keys['ArrowUp'])
-        const down = this.keys['KeyS'] || (this.useArrowKeys && this.keys['ArrowDown'])
-        const left = this.keys['KeyA'] || (this.useArrowKeys && this.keys['ArrowLeft'])
-        const right = this.keys['KeyD'] || (this.useArrowKeys && this.keys['ArrowRight'])
+        const up = this.keys['ArrowUp']
+        const down = this.keys['ArrowDown']
+        const left = this.keys['ArrowLeft']
+        const right = this.keys['ArrowRight']
 
         if (up) this.axis.y = 1
         if (down) this.axis.y = -1

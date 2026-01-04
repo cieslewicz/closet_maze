@@ -101,7 +101,7 @@ export class Game {
         // Initialize Entities
         this.initLevel()
 
-        this.inputManager = new InputManager({ useArrowKeys: false })
+        this.inputManager = new InputManager()
         this.clock = new THREE.Clock()
 
         // Resize handler
@@ -591,10 +591,10 @@ export class Game {
         let rotateH = 0
         let rotateV = 0
 
-        if (this.inputManager.isKeyPressed('ArrowLeft')) rotateH -= ROTATE_SPEED
-        if (this.inputManager.isKeyPressed('ArrowRight')) rotateH += ROTATE_SPEED
-        if (this.inputManager.isKeyPressed('ArrowUp')) rotateV -= ROTATE_SPEED
-        if (this.inputManager.isKeyPressed('ArrowDown')) rotateV += ROTATE_SPEED
+        if (this.inputManager.isKeyPressed('KeyA')) rotateH -= ROTATE_SPEED
+        if (this.inputManager.isKeyPressed('KeyD')) rotateH += ROTATE_SPEED
+        if (this.inputManager.isKeyPressed('KeyW')) rotateV -= ROTATE_SPEED
+        if (this.inputManager.isKeyPressed('KeyS')) rotateV += ROTATE_SPEED
 
         if (rotateH !== 0 || rotateV !== 0) {
             const offset = new THREE.Vector3().copy(this.camera.position).sub(this.controls.target)

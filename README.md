@@ -5,14 +5,11 @@ A suspenseful 3D web game where you must navigate a procedural maze, hide in clo
 ## How to Play
 
 ### Controls
-
-| Action | Controls |
-| :--- | :--- |
-| **Move** | `W` `A` `S` `D` |
-| **Look** | Arrow Keys or Mouse |
-| **Zoom** | Scroll, `Z`/`X` or `+`/`-` |
-| **Hide** | Walk into a Closet |
-| **Pause/Help** | `Esc` or `H` |
+- **Movement**: Arrow Keys
+- **Camera Rotation**: WASD
+- **Camera Zoom**: Z / X
+- **Pause/Help**: ESC or H
+- **Interact**: Walk into closets to hide
 
 ### Goal
 *   Explore the maze to find the **Golden Door**.

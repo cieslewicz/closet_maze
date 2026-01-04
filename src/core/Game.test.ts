@@ -182,13 +182,15 @@ describe('Game Integration', () => {
         expect(mockUpdate.mock.calls.length).toBeGreaterThanOrEqual(2)
     })
 
-    it('should rotate camera when arrow keys are pressed', () => {
+    it('should rotate camera when WASD keys are pressed', () => {
         game = new Game()
         const camera = (game as any).camera
         const initialX = camera.position.x
 
-        // Simulate Arrow Right
-        const eventLeft = new KeyboardEvent('keydown', { code: 'ArrowLeft' })
+        // Simulate KeyA (Rotate Left)
+        // Game logic: Left key -> rotateH -= Speed
+        // Note: OrbitControls math is complex, but position should change.
+        const eventLeft = new KeyboardEvent('keydown', { code: 'KeyA' })
         window.dispatchEvent(eventLeft)
 
         // Run update

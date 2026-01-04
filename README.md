@@ -1,6 +1,6 @@
 # Closet Maze
 
-A suspenseful 3D web game where you must navigate a procedural maze, hide in closets to evade enemies, and find the Golden Door to escape. Built with **Three.js** and **TypeScript**.
+A suspenseful 3D web game where you must navigate a procedural maze, hide in closets to evade enemies, and find the Golden Door to escape. Built with **Three.js** and **TypeScript** using Google Antigravity and Gemini 3 Pro.
 
 ## How to Play
 

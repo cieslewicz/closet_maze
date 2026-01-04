@@ -49,4 +49,39 @@ describe('Maze', () => {
 
         expect(maze.checkCollision(playerBox)).toBe(false)
     })
+    it('should check reachability avoiding dynamic obstacles', () => {
+        // Setup: Start (0,0) and End (2,0)
+        // Path: (0,0) -> (1,0) -> (2,0)
+        // Obstacle at (1,0) should block it.
+
+        // Manipulate map for deterministic test
+        const map = (maze as any).map
+        const w = (maze as any).width
+        const h = (maze as any).height
+        const cx = Math.floor(w / 2)
+        const cz = Math.floor(h / 2)
+
+        // Fill map with walls (1)
+        for (let z = 0; z < h; z++) {
+            for (let x = 0; x < w; x++) {
+                map[z][x] = 1
+            }
+        }
+
+        // Carve strict path: (0,0) -> (1,0) -> (2,0)
+        // Indices: (cx, cz) -> (cx+1, cz) -> (cx+2, cz)
+        map[cz][cx] = 0 // Start
+        map[cz][cx + 1] = 0 // Path (Obstacle here)
+        map[cz][cx + 2] = 0 // End
+
+        const start = new THREE.Vector3(0, 0, 0) // World 0,0 is Maze Center
+        const end = new THREE.Vector3(2, 0, 0)
+        const obstacle = new THREE.Vector3(1, 0, 0)
+
+        // 1. Should be reachable without obstacles
+        expect(maze.checkReachability(start, end, [])).toBe(true)
+
+        // 2. Should be blocked by obstacle
+        expect(maze.checkReachability(start, end, [obstacle])).toBe(false)
+    })
 })

@@ -129,89 +129,159 @@ export class Game {
         this.enemies = []
 
         // Closets & Enemies
-        const emptySpots = this.maze.getEmptySpots()
+        let emptySpots = this.maze.getEmptySpots()
+
+        // Filter out spots near the Exit to prevent blocking
+        const exitPos = this.maze.getExitPosition()
+        if (exitPos) {
+            emptySpots = emptySpots.filter(spot => {
+                const spotVec = new THREE.Vector3(spot.x, 0, spot.z)
+                // Minimum distance to prevent blocking. 1.1 ensures direct neighbors are excluded?
+                // Exit is at border. Neighbors are dist 1.0. 
+                // We want to exclude neighbors. Dist < 1.1 works.
+                // Let's be safe and say 2.0 to give room.
+                return spotVec.distanceTo(exitPos) > 2.0
+            })
+        }
 
         // Reserved spots: "x,z" strings for Closet locations AND their Entry zones.
         // This ensures closets don't block each other or create dead ends at their own entrances.
         const reservedSpots = new Set<string>()
 
         // Spawn 5 random closets with orientation
-        for (let i = 0; i < 5 && i < emptySpots.length; i++) {
-            const idx = Math.floor(Math.random() * emptySpots.length)
-            const spot = emptySpots[idx] // Peek first
+        // Retry logic to ensure closets don't block the path to the exit
+        let attempts = 0
+        const maxAttempts = 10
+        let success = false
 
-            // If spot is strictly reserved (e.g. it's an entry zone for another closet), skip
-            if (reservedSpots.has(`${Math.round(spot.x)},${Math.round(spot.z)}`)) {
-                emptySpots.splice(idx, 1) // Remove invalid spot
-                i-- // Retry
-                continue
+        while (attempts < maxAttempts && !success) {
+            // Reset for this attempt. 
+            // NOTE: We need to clone emptySpots or refill it if we retry?
+            // emptySpots is modified by splicing. So we must re-fetch or clone it each loop.
+            // Re-fetch is safer.
+            emptySpots = this.maze.getEmptySpots()
+
+            // Re-apply Exit Filter
+            if (exitPos) {
+                emptySpots = emptySpots.filter(spot => {
+                    const spotVec = new THREE.Vector3(spot.x, 0, spot.z)
+                    return spotVec.distanceTo(exitPos) > 2.0
+                })
             }
 
-            const dirs = [
-                { angle: 0, dx: 0, dz: 1 },    // Front (+Z)
-                { angle: Math.PI / 2, dx: 1, dz: 0 }, // Right (+X)
-                { angle: Math.PI, dx: 0, dz: -1 }, // Back (-Z)
-                { angle: -Math.PI / 2, dx: -1, dz: 0 } // Left (-X)
-            ]
+            // Clear any previous attempts from scene
+            for (const c of this.closets) {
+                this.scene.remove(c.getMesh())
+            }
+            this.closets = []
+            const currentReservedSpots = new Set<string>()
 
-            // Shuffle directions
-            dirs.sort(() => Math.random() - 0.5)
+            let placedCount = 0
+            for (let i = 0; i < 5 && i < emptySpots.length; i++) {
+                const idx = Math.floor(Math.random() * emptySpots.length)
+                const spot = emptySpots[idx] // Peek first
 
-            let rotation: number | null = null
-            let entryX = 0
-            let entryZ = 0
+                // If spot is strictly reserved (e.g. it's an entry zone for another closet), skip
+                if (currentReservedSpots.has(`${Math.round(spot.x)},${Math.round(spot.z)}`)) {
+                    emptySpots.splice(idx, 1) // Remove invalid spot
+                    i-- // Retry
+                    continue
+                }
 
-            for (const d of dirs) {
-                // Check if the spot in front of this direction is open
-                const ex = Math.round(spot.x + d.dx)
-                const ez = Math.round(spot.z + d.dz)
-                const entryKey = `${ex},${ez}`
+                const dirs = [
+                    { angle: 0, dx: 0, dz: 1 },    // Front (+Z)
+                    { angle: Math.PI / 2, dx: 1, dz: 0 }, // Right (+X)
+                    { angle: Math.PI, dx: 0, dz: -1 }, // Back (-Z)
+                    { angle: -Math.PI / 2, dx: -1, dz: 0 } // Left (-X)
+                ]
 
-                // 1. Check Reservation (Don't face another closet's door OR a closet itself)
-                if (reservedSpots.has(entryKey)) continue
+                // Shuffle directions
+                dirs.sort(() => Math.random() - 0.5)
 
-                // 2. Check Map Collision (Walls)
-                const probeBox = new THREE.Box3(
-                    new THREE.Vector3(spot.x + d.dx - 0.1, 0, spot.z + d.dz - 0.1),
-                    new THREE.Vector3(spot.x + d.dx + 0.1, 1, spot.z + d.dz + 0.1)
-                )
-                if (!this.maze.checkCollision(probeBox)) {
-                    // 3. Check Closet Collision (Don't block existing closets - though reservedSpots covers this mostly)
-                    let blocked = false
-                    for (const c of this.closets) {
-                        if (c.getBoundingBox().intersectsBox(probeBox)) {
-                            blocked = true
+                let rotation: number | null = null
+                let entryX = 0
+                let entryZ = 0
+
+                for (const d of dirs) {
+                    // Check if the spot in front of this direction is open
+                    const ex = Math.round(spot.x + d.dx)
+                    const ez = Math.round(spot.z + d.dz)
+                    const entryKey = `${ex},${ez}`
+
+                    // 1. Check Reservation (Don't face another closet's door OR a closet itself)
+                    if (currentReservedSpots.has(entryKey)) continue
+
+                    // 2. Check Map Collision (Walls)
+                    const probeBox = new THREE.Box3(
+                        new THREE.Vector3(spot.x + d.dx - 0.1, 0, spot.z + d.dz - 0.1),
+                        new THREE.Vector3(spot.x + d.dx + 0.1, 1, spot.z + d.dz + 0.1)
+                    )
+                    if (!this.maze.checkCollision(probeBox)) {
+                        // 3. Check Closet Collision (Don't block existing closets - though reservedSpots covers this mostly)
+                        let blocked = false
+                        for (const c of this.closets) {
+                            if (c.getBoundingBox().intersectsBox(probeBox)) {
+                                blocked = true
+                                break
+                            }
+                        }
+                        if (!blocked) {
+                            rotation = d.angle
+                            entryX = ex
+                            entryZ = ez
                             break
                         }
                     }
-                    if (!blocked) {
-                        rotation = d.angle
-                        entryX = ex
-                        entryZ = ez
-                        break
+                }
+
+                if (rotation !== null) {
+                    // Valid spot found
+                    emptySpots.splice(idx, 1) // Consume
+
+                    const closet = new Closet(spot.x, spot.z, rotation)
+                    this.closets.push(closet)
+                    this.scene.add(closet.getMesh())
+
+                    // Reserve the Closet Spot itself
+                    currentReservedSpots.add(`${Math.round(spot.x)},${Math.round(spot.z)}`)
+
+                    // Reserve the Entry Zone (so no other closet can be placed here OR face here)
+                    currentReservedSpots.add(`${entryX},${entryZ}`)
+                    placedCount++
+                } else {
+                    // No valid rotation? Skip this spot but don't count as success
+                }
+            } // End of closet placement loop
+
+            // Check Reachability
+            if (exitPos) {
+                const startPos = new THREE.Vector3(0, 0, 0)
+                const obstacles = this.closets.map(c => c.getMesh().position)
+                if (this.maze.checkReachability(startPos, exitPos, obstacles)) {
+                    success = true
+                    reservedSpots.clear()
+                    // Merge currentReserved into main reserved (if we kept main reserved? No, local is fine)
+                    // Actually we need reservedSpots for Enemy Placement maybe?
+                    // Currently Enemy Placement relies on `emptySpots` but logic below doesn't use `reservedSpots`.
+                    // Wait, logic below uses `emptySpots` which has been spliced.
+                    // If we retry, we replenished emptySpots.
+                    // So subsequent logic needs the final state of emptySpots.
+                    // Loop modifies emptySpots in place via splice.
+                    success = true
+                } else {
+                    // Failed reachability.
+                    // Loop will continue and reset closets.
+                    attempts++
+                    if (attempts === maxAttempts) {
+                        console.warn("Could not place closets without blocking exit. Proceeding with best effort (or last attempt).")
+                        // In last attempt we keep them.
+                        success = true
                     }
                 }
-            }
-
-            if (rotation !== null) {
-                // Valid spot found
-                emptySpots.splice(idx, 1) // Consume
-
-                const closet = new Closet(spot.x, spot.z, rotation)
-                this.closets.push(closet)
-                this.scene.add(closet.getMesh())
-
-                // Reserve the Closet Spot itself
-                reservedSpots.add(`${Math.round(spot.x)},${Math.round(spot.z)}`)
-
-                // Reserve the Entry Zone (so no other closet can be placed here OR face here)
-                reservedSpots.add(`${entryX},${entryZ}`)
             } else {
-                // No valid rotation? Skip this spot but don't count as success
-                emptySpots.splice(idx, 1)
-                i--
+                success = true
             }
-        }
+        } // End of retry loop
 
         // Filter spots for Enemies (Min distance from Player at 0,0)
         // prevents spawn camping

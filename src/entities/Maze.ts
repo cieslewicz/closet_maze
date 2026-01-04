@@ -6,6 +6,7 @@ export class Maze {
     private map: number[][]
     private group: THREE.Group
     private walls: THREE.Mesh[] = []
+    private exitPosition: THREE.Vector3 | null = null
 
     // 1 = Wall, 0 = Path, 2 = Start, 3 = Exit
     constructor(width: number, height: number) {
@@ -97,6 +98,12 @@ export class Maze {
                 // Success!
                 const exit = exitCandidates[Math.floor(Math.random() * exitCandidates.length)]
                 this.map[exit.z][exit.x] = 3
+                this.exitPosition = new THREE.Vector3(
+                    exit.x - this.width / 2,
+                    0,
+                    exit.z - this.height / 2
+                )
+
 
                 // Ensure neighbor is definitely 0 (it should be if reachable, but just to be safe logic-wise)
                 // Actually reachable check confirmed neighbor is 0.
@@ -201,6 +208,7 @@ export class Maze {
 
     public getGroup() { return this.group }
     public getWalls() { return this.walls }
+    public getExitPosition() { return this.exitPosition }
 
     public getEmptySpots(): { x: number, z: number }[] {
         const spots: { x: number, z: number }[] = []
@@ -215,5 +223,66 @@ export class Maze {
             }
         }
         return spots
+    }
+
+    public checkReachability(startWorld: THREE.Vector3, endWorld: THREE.Vector3, obstacles: THREE.Vector3[] = []): boolean {
+        // Convert world to grid
+        const startX = Math.round(startWorld.x + this.width / 2)
+        const startZ = Math.round(startWorld.z + this.height / 2)
+        const endX = Math.round(endWorld.x + this.width / 2)
+        const endZ = Math.round(endWorld.z + this.height / 2)
+
+        // Basic bounds check
+        if (startX < 0 || startX >= this.width || startZ < 0 || startZ >= this.height) return false
+        if (endX < 0 || endX >= this.width || endZ < 0 || endZ >= this.height) return false
+
+        // Convert obstacles to a Set of "x,z" strings for fast lookup
+        const obstacleSet = new Set<string>()
+        for (const obs of obstacles) {
+            const ox = Math.round(obs.x + this.width / 2)
+            const oz = Math.round(obs.z + this.height / 2)
+            obstacleSet.add(`${ox},${oz}`)
+        }
+
+        // BFS
+        const visited = new Set<string>()
+        const queue: { x: number, z: number }[] = [{ x: startX, z: startZ }]
+        visited.add(`${startX},${startZ}`)
+
+        while (queue.length > 0) {
+            const current = queue.shift()!
+
+            // Check if we reached target OR neighbor of target if target is wall/exit?
+            // Exit tile is 3. Walkable? 
+            // In generateSimpleMap, we treated 0 as walkable. 3 is Exit.
+            // If the goal is the Exit tile itself, we count reaching it as success.
+            if (current.x === endX && current.z === endZ) return true
+
+            const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]]
+            for (const d of dirs) {
+                const nx = current.x + d[0]
+                const nz = current.z + d[1]
+
+                // Check Bounds
+                if (nx >= 0 && nx < this.width && nz >= 0 && nz < this.height) {
+                    const key = `${nx},${nz}`
+                    if (!visited.has(key)) {
+                        // Check Walkability
+                        // Map value: must be 0 (Path) or 3 (Exit) or 2 (Start)
+                        // 1 is Wall.
+                        // ObstacleSet: treated as Wall.
+                        const cell = this.map[nz][nx]
+                        const isWalkable = (cell === 0 || cell === 2 || cell === 3)
+
+                        if (isWalkable && !obstacleSet.has(key)) {
+                            visited.add(key)
+                            queue.push({ x: nx, z: nz })
+                        }
+                    }
+                }
+            }
+        }
+
+        return false
     }
 }

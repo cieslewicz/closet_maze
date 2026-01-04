@@ -98,6 +98,10 @@ describe('Game Integration', () => {
 
         // Setup minimal DOM for UI
         document.body.innerHTML = `
+            <div id="mobile-warning">
+                <h1>Desktop Only</h1>
+                <p>This game unfortunately only works on desktop.</p>
+            </div>
             <div id="ui-layer">
                 <div id="main-menu">
                     <button id="btn-start">Play</button>
@@ -127,6 +131,14 @@ describe('Game Integration', () => {
         // Initial screen should be menu (active class)
         const menu = document.getElementById('main-menu')
         expect(menu?.classList.contains('active')).toBe(true)
+    })
+
+    it('should include mobile warning in index.html', () => {
+        const fs = require('fs')
+        const path = require('path')
+        const html = fs.readFileSync(path.resolve(__dirname, '../../index.html'), 'utf-8')
+        expect(html).toContain('<div id="mobile-warning">')
+        expect(html).toContain('Desktop Only')
     })
 
     it('should start game when Play button is clicked', () => {
@@ -217,7 +229,7 @@ describe('Game Integration', () => {
             const positions = new Set<string>()
 
             for (const c of closets) {
-                positions.add(`${Math.round(c.mesh.position.x)},${Math.round(c.mesh.position.z)}`)
+                positions.add(`${Math.round(c.mesh.position.x)},${Math.round(c.mesh.position.z)} `)
             }
 
             for (const c of closets) {
@@ -232,7 +244,7 @@ describe('Game Integration', () => {
 
                 const entryX = Math.round(pos.x + dir.x)
                 const entryZ = Math.round(pos.z + dir.z)
-                const entryKey = `${entryX},${entryZ}`
+                const entryKey = `${entryX},${entryZ} `
 
                 // Check 1: Entry should not be another closet's position (Blocking)
                 expect(positions.has(entryKey)).toBe(false)

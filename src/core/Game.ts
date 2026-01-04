@@ -43,12 +43,23 @@ export class Game {
         this.uiManager.onRestart = () => this.restart()
         this.uiManager.onResume = () => this.resume()
 
-        // Global Key handler for Help
+        // Global Key handler for Help and Pause
         window.addEventListener('keydown', (e) => {
-            if (e.key.toLowerCase() === 'h') {
+            const key = e.key.toLowerCase()
+            if (key === 'h') {
                 this.toggleHelp()
             }
+            if (key === 'escape') {
+                this.togglePause()
+            }
         })
+
+        // Bind Pause Menu Buttons
+        const btnResume = document.getElementById('btn-pause-resume')
+        if (btnResume) btnResume.addEventListener('click', () => this.togglePause())
+
+        const btnQuit = document.getElementById('btn-pause-quit')
+        if (btnQuit) btnQuit.addEventListener('click', () => this.quitToMenu())
 
         // Renderer setup
         this.renderer = new THREE.WebGLRenderer({
@@ -295,13 +306,51 @@ export class Game {
         this.loop()
     }
 
+    public togglePause() {
+        if (!this.isRunning) return
+
+        this.isPaused = !this.isPaused
+
+        const pauseMenu = document.getElementById('pause-menu')
+        if (pauseMenu) {
+            if (this.isPaused) {
+                pauseMenu.classList.add('active')
+                this.clock.stop()
+            } else {
+                pauseMenu.classList.remove('active')
+                this.clock.start()
+            }
+        }
+    }
+
+    public quitToMenu() {
+        this.isRunning = false
+        this.isPaused = false
+
+        // Hide Pause Menu
+        const pauseMenu = document.getElementById('pause-menu')
+        if (pauseMenu) pauseMenu.classList.remove('active')
+
+        // Show Main Menu
+        this.uiManager.showMainMenu()
+
+        // Clear Scene
+        this.scene.clear()
+
+        // Stop Clock
+        this.clock.stop()
+    }
+
     private loop() {
         if (!this.isRunning) return
-        requestAnimationFrame(this.loop.bind(this))
+
+        requestAnimationFrame(() => this.loop())
+
+        if (this.isPaused) return
 
         const dt = this.clock.getDelta()
         this.update(dt)
-        this.render()
+        this.renderer.render(this.scene, this.camera)
     }
 
     private update(dt: number) {
@@ -461,9 +510,7 @@ export class Game {
         this.controls.update()
     }
 
-    private render() {
-        this.renderer.render(this.scene, this.camera)
-    }
+
 
     private onWindowResize() {
         this.camera.aspect = window.innerWidth / window.innerHeight

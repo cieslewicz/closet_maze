@@ -37,7 +37,7 @@ export class UIManager {
             this.showScreen('hud')
         })
 
-        document.getElementById('btn-resume')?.addEventListener('click', () => {
+        document.getElementById('btn-help-resume')?.addEventListener('click', () => {
             this.onResume?.()
             this.showScreen('hud')
         })
@@ -52,6 +52,10 @@ export class UIManager {
             this.screens[screenName].classList.add('active')
 
         }
+    }
+
+    public showMainMenu() {
+        this.showScreen('menu')
     }
 
     public updateStatus(isHidden: boolean, isChase: boolean = false) {

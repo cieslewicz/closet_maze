@@ -223,4 +223,49 @@ describe('Game Integration', () => {
             }
         }
     })
+
+    it('should pause and resume game', () => {
+        game = new Game()
+            ; (game as any).start()
+
+        // Mock getElementById to return a mock element
+        const mockMenu = { classList: { remove: vi.fn(), add: vi.fn() } }
+        const docSpy = vi.spyOn(document, 'getElementById').mockReturnValue(mockMenu as any)
+
+            // Pause
+            ; (game as any).togglePause()
+        expect((game as any).isPaused).toBe(true)
+        expect((game as any).clock.running).toBe(false)
+        expect(mockMenu.classList.add).toHaveBeenCalledWith('active')
+
+            // Resume
+            ; (game as any).togglePause()
+        expect((game as any).isPaused).toBe(false)
+        expect((game as any).clock.running).toBe(true)
+        expect(mockMenu.classList.remove).toHaveBeenCalledWith('active')
+
+        docSpy.mockRestore()
+    })
+
+    it('should quit to main menu', () => {
+        game = new Game()
+            ; (game as any).start()
+            ; (game as any).togglePause() // Pause first
+
+        const mockMenu = { classList: { remove: vi.fn(), add: vi.fn() } }
+        const docSpy = vi.spyOn(document, 'getElementById').mockReturnValue(mockMenu as any)
+
+        const uiSpy = vi.spyOn((game as any).uiManager, 'showMainMenu')
+        const sceneSpy = vi.spyOn((game as any).scene, 'clear')
+
+            ; (game as any).quitToMenu()
+
+        expect((game as any).isRunning).toBe(false)
+        expect((game as any).isPaused).toBe(false)
+        expect(uiSpy).toHaveBeenCalled()
+        expect(sceneSpy).toHaveBeenCalled()
+        expect(mockMenu.classList.remove).toHaveBeenCalledWith('active')
+
+        docSpy.mockRestore()
+    })
 })

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Enemy } from './Enemy'
 import { Maze } from './Maze'
 import * as THREE from 'three'
@@ -261,7 +261,7 @@ describe('Enemy', () => {
         // We need to spy on maze.checkCollision to return true for the wall check
         // The wall check sends a box. The enemy sends body box for movement (large) and LOS probe (small 0.1)
 
-        const collisionSpy = vi.spyOn(maze, 'checkCollision').mockImplementation((box: THREE.Box3, blockTypes?: number[]) => {
+        const collisionSpy = vi.spyOn(maze, 'checkCollision').mockImplementation((box: THREE.Box3, _blockTypes?: number[]) => {
             const center = new THREE.Vector3()
             box.getCenter(center)
 
